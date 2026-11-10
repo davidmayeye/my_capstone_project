@@ -383,29 +383,119 @@ elif page == "Equipment screening":
 
 # ------------------------------------------------------------------ executive summary
 else:
-    rate = data.groupby("maintenance_status")["failed"].mean().mul(100)
-    pol = reorder_policy(moves)
-    c = st.columns(4)
-    kpi(c[0], "🧪", "Batches / failed", f"{len(data):,}", f"{data['failed'].sum():,} failed ({data['failed'].mean():.1%})", "teal")
+    rate = data.groupby("maintenance_status")["failed"].mean().mul(100)    # failure rate per equipment status
+    pol = reorder_policy(moves)                                             # stock status
+    st.markdown('''<div style="background:#e8f6f5;border-left:6px solid #0e7c7b;padding:14px 18px;border-radius:10px;margin-bottom:14px">
+    <b>Bottom line.</b> Of nine business questions, the models answer six usefully: yield, maintenance state, monthly quality trend,
+    weekly demand, stock-outs and product groups. Batch failure and abnormal process conditions cannot be predicted reliably from
+    pre-release data, so laboratory testing stays. The biggest gains are in maintenance timing, corrective action on three failure
+    causes (70% of failures) and buying stock to demand.</div>''', unsafe_allow_html=True)  # headline message
+    c = st.columns(5)
+    kpi(c[0], "🧪", "Batches passed", f"{1 - data['failed'].mean():.1%}", f"{len(data):,} batches · {data['failed'].sum():,} failed", "teal",
+        bar=(1 - data["failed"].mean()) * 100)
     kpi(c[1], "🔧", "Critical vs Current", f"{rate['Critical']:.1f}% vs {rate['Current']:.1f}%", "failure rate", "coral")
-    kpi(c[2], "💰", "Net sales 2014–2025", f"KES {valid['net_amount_excl_vat_kes'].sum() / 1e9:.1f} bn", f"KES {sales['balance_due_kes'].sum() / 1e6:,.0f} m unpaid", "green")
-    kpi(c[3], "📦", "Reorder / overstock", f"{(pol['status'] == 'Reorder now').sum()} / {(pol['status'] == 'Overstock').sum()}", "items", "gold")
+    kpi(c[2], "🔬", "Top 3 failure causes", "70%", "assay, dissolution, weight variation", "gold", bar=70)
+    kpi(c[3], "💰", "Net sales 2014–2025", f"KES {valid['net_amount_excl_vat_kes'].sum() / 1e9:.1f} bn", f"KES {sales['balance_due_kes'].sum() / 1e6:,.0f} m unpaid", "green")
+    kpi(c[4], "📦", "Reorder / overstock", f"{(pol['status'] == 'Reorder now').sum()} / {(pol['status'] == 'Overstock').sum()}",
+        f"of {len(pol):,} items", "violet", bar=(pol["status"] == "Overstock").mean() * 100)
+
+    st.subheader("1. What we asked and what the models found")
+    st.dataframe(pd.DataFrame([
+        ["1. Will a batch fail QC?", "Baseline, Logistic Regression, Random Forest, ANN", "Logistic Regression",
+         "PR-AUC 0.047 vs 0.031 random; catches 193 of 375 failures (recall 51.5%) but only 4% of alerts are real", "Weakly — keep lab testing"],
+        ["2. What yield will a batch achieve?", "Baseline, Random Forest, ANN", "Random Forest",
+         "MAE 0.858 yield points vs 1.102 (22% better); R² 0.33", "Yes — useful for planning output"],
+        ["3. What maintenance state is the equipment in?", "Baseline, Logistic Regression, Random Forest, ANN", "Random Forest",
+         "Macro F1 0.557 vs 0.316; finds 60 of 87 Critical records (69%)", "Yes — flags most overdue equipment"],
+        ["4. Are monthly quality indicators deteriorating?", "Seasonal-naive, Moving average, Linear Regression, GRU", "Linear Regression",
+         "Average WAPE 7.0% (20.6% better); failure-rate WAPE 26% is the hardest", "Yes — trend tracked within 7%"],
+        ["5. Which batches ran under abnormal conditions?", "Random score, Z-score, PCA, KNN distance", "Z-score rule",
+         "PR-AUC 0.036 vs 0.033; top 5% hold 7.2% of failures (lift 1.4)", "Weak link to failure — use for process review"],
+        ["6. What are the main failure causes?", "TF-IDF + K-Means, k = 2 to 6", "K-Means (k = 6)",
+         "Silhouette 0.788; assay 37%, dissolution 18%, weight variation 15% = 70%", "Yes — three causes to fix first"],
+        ["7. What will weekly demand be?", "Seasonal-naive, Moving average, Croston-SBA, Linear Regression", "Croston-SBA",
+         "WAPE 115% (19.7% better), bias −5.9%; company total WAPE 12.4%", "Yes for totals; single product-weeks stay noisy"],
+        ["8. Which items will run out within 14 days?", "Baseline, Logistic Regression, Random Forest, Gradient Boosting", "Gradient Boosting",
+         "PR-AUC 0.278 (about 206× random); recall 0.80 at threshold 0.690 with 1,186 alerts for 156 stock-outs", "Yes — a usable watch-list"],
+        ["9. Which product groups need different stock policies?", "K-Means, k = 2 to 6", "K-Means (k = 2)",
+         "Silhouette 0.471; 250 fast, cheap items (76% of value) vs 50 slow, expensive items (mostly Equipment)", "Yes — two stock rules"],
+    ], columns=["Question", "Models compared", "Chosen", "Key values", "Answer"]), hide_index=True, width="stretch")
+
     st.subheader("Model scorecard")
     rows = []
     for name, r in RESULTS.items():                                         # one row per problem
         t = r["table"].set_index("Model")[r["metric"]]
         b = [m for m in t.index if m.startswith("Baseline")]
         rows.append([name, r["best"], r["metric"], t[r["best"]], t[b[0]] if b else None, GAINS.get(name)])
-    st.dataframe(pd.DataFrame(rows, columns=["Problem", "Chosen model", "Metric", "Score", "Baseline", "Gain over baseline (%)"]).round(3),
-                 hide_index=True, width="stretch")
-    st.subheader("Recommendations")
+    score = pd.DataFrame(rows, columns=["Problem", "Chosen model", "Metric", "Score", "Baseline", "Gain over baseline (%)"])
+    st.dataframe(score.round(3), hide_index=True, width="stretch")
+
+    st.subheader("2. The evidence in pictures")
+    c = st.columns(2)
+    g = score.dropna(subset=["Gain over baseline (%)"])
+    g = g[g["Gain over baseline (%)"] < 1000]                               # stock-out gain (20,480%) shown in the caption instead
+    g = g.assign(level=np.where(g["Gain over baseline (%)"] >= 15, "15%+ better", "under 15%"))  # colour group
+    c[0].altair_chart(alt.Chart(g).mark_bar().encode(
+        y=alt.Y("Problem:N", sort="-x", title=None), x=alt.X("Gain over baseline (%):Q"),
+        color=alt.Color("level:N", scale=alt.Scale(domain=["15%+ better", "under 15%"], range=[TEAL, GOLD]), title=None),
+        tooltip=["Problem", "Chosen model", "Gain over baseline (%)"]).properties(height=280, title="Chosen model vs baseline (teal = 15%+ better)"),
+        width="stretch")
+    c[0].caption("Stock-out model not shown: PR-AUC 0.278 vs 0.001 is about 206× random and would flatten the other bars.")
+    themes = pd.DataFrame({"cause": ["Assay", "Dissolution", "Weight variation", "Microbial limit", "Related substances", "Blend uniformity"],
+                           "share": [37.3, 18.2, 14.8, 11.6, 9.5, 8.7]})
+    themes["cumulative"] = themes["share"].cumsum()
+    base = alt.Chart(themes).encode(x=alt.X("cause:N", sort=None, title=None))
+    c[1].altair_chart(alt.layer(base.mark_bar(color=CORAL).encode(y=alt.Y("share:Q", title="Share of failures (%)")),
+                                base.mark_line(color=NAVY, point=True).encode(y=alt.Y("cumulative:Q", title="Cumulative %", scale=alt.Scale(domain=[0, 100]))))
+                      .resolve_scale(y="independent").properties(height=280, title="Failure causes (NLP): top 3 = 70%"), width="stretch")
+    c = st.columns(2)
+    r = rate.reindex(["Current", "Due Soon", "Critical"]).reset_index(name="rate")
+    c[0].altair_chart(alt.Chart(r).mark_bar().encode(
+        x=alt.X("maintenance_status:N", sort=None, title=None), y=alt.Y("rate:Q", title="Failure rate (%)"),
+        color=alt.Color("maintenance_status:N", scale=alt.Scale(domain=["Current", "Due Soon", "Critical"], range=[TEAL, GOLD, CORAL]), legend=None),
+        tooltip=["maintenance_status", alt.Tooltip("rate:Q", format=".2f")]).properties(height=260, title="Failure rate by maintenance status"), width="stretch")
+    dm = pd.DataFrame({"Model": ["Seasonal-naive", "Moving average", "Croston-SBA", "Linear Regression"] * 2,
+                       "Level": ["Product-week"] * 4 + ["Company total"] * 4,
+                       "WAPE (%)": [143.2, 120.2, 115.0, 104.4, 16.5, 11.3, 12.4, 29.1]})
+    c[1].altair_chart(alt.Chart(dm).mark_bar().encode(
+        x=alt.X("Model:N", sort=None, title=None), y=alt.Y("WAPE (%):Q"), xOffset="Level:N",
+        color=alt.Color("Level:N", scale=alt.Scale(range=[NAVY, TEAL])), tooltip=["Model", "Level", "WAPE (%)"])
+        .properties(height=260, title="Weekly demand error: product vs company level"), width="stretch")
+    c = st.columns(2)
+    so = pd.DataFrame({"Model": ["Gradient Boosting", "Logistic Regression", "Random Forest"] * 2,
+                       "Measure": ["PR-AUC"] * 3 + ["Precision"] * 3, "value": [0.278, 0.265, 0.243, 0.095, 0.048, 0.122]})
+    c[0].altair_chart(alt.Chart(so).mark_bar().encode(
+        x=alt.X("Model:N", title=None), y=alt.Y("value:Q", title=None), xOffset="Measure:N",
+        color=alt.Color("Measure:N", scale=alt.Scale(range=[TEAL, GOLD])), tooltip=["Model", "Measure", "value"])
+        .properties(height=260, title="Stock-out models (random PR-AUC = 0.001)"), width="stretch")
+    c[1].altair_chart(alt.Chart(pol["status"].value_counts().reset_index(name="items")).mark_arc(innerRadius=60).encode(
+        theta="items:Q", color=alt.Color("status:N", scale=alt.Scale(domain=["Overstock", "Reorder now", "No recent demand", "OK"],
+                                                                     range=[GOLD, CORAL, GREY, TEAL])),
+        tooltip=["status", "items"]).properties(height=260, title=f"Stock status · KES {pol['excess_value_kes'].sum() / 1e9:,.1f} bn beyond 180 days"),
+        width="stretch")
+
+    st.subheader("3. How we handled what we found")
     st.dataframe(pd.DataFrame([
-        ["High", "QA / CAPA", "CAPA on assay, dissolution and weight-variation failures, starting with Oral Solids", "70% of failures; Oral Solids = 74%"],
-        ["High", "Engineering", "Service equipment before it becomes Critical; fixed schedule for the most-overdue machines", "6.9% vs 3.1% failure rate"],
-        ["High", "Procurement", "Buy to the reorder-point policy; stop receipts for overstocked items, especially Equipment", "Receipts about 2× sales; KES 64 bn stock"],
-        ["Medium", "Branch stores", "Weekly reorder list and stock-out watch-list", "Catches 80% of stock-outs"],
-        ["Medium", "Planning", "Plan volumes with the Croston-SBA weekly forecast", "20% better than last year's pattern"],
-        ["Medium", "Finance", "Review credit-account terms and collections", "KES 1.8 bn unpaid, all on credit accounts"],
-        ["Low", "QA", "Use the failure ranking only for extra in-process checks", "Failure model is weak"]],
-        columns=["Priority", "Owner", "Action", "Evidence"]), hide_index=True, width="stretch")
-    st.caption("Limitations: no opening stock, expiry dates or supplier lead times; batches cannot be linked to sales; no savings are claimed.")
+        ["Only 3.1% of batches fail; Critical is under 1% of records", "PR-AUC, recall and macro F1 used to choose models, not accuracy; a baseline kept in every comparison"],
+        ["Batch-failure prediction is weak (PR-AUC 0.047)", "Not used to release batches; only to rank batches for extra in-process checks"],
+        ["Forecasts can look good while biased", "Weekly demand: models with bias beyond ±10% rejected, so Croston-SBA chosen over Linear Regression (−28%)"],
+        ["Time series must not see the future", "Monthly trend tested on the last 36 months; weekly demand from 23 Oct 2023; stock-outs on the last 20% of weeks"],
+        ["Stock-outs are rare (0.14% of weeks)", "Alert threshold set from the precision-recall curve for recall ≥ 0.80 (0.690)"],
+        ["Free-text rejection reasons", "TF-IDF + K-Means grouped them into six causes, k chosen by silhouette on held-out text"],
+        ["Cancelled orders and missing opening stock", "6,045 cancelled orders and their stock movements excluded; stock rebuilt from zero and reconciled per branch"],
+        ["Outliers in quantity, price and margin", "Flagged with the 1.5 × IQR rule and kept, because bulk orders and price changes are real"],
+        ["No supplier lead times", "Lead time assumed 14 days, 95% service level; both can be changed on the Inventory policy page"],
+    ], columns=["Finding or risk", "How it was handled"]), hide_index=True, width="stretch")
+
+    st.subheader("4. Recommendations")
+    st.dataframe(pd.DataFrame([
+        ["High", "QA / CAPA", "CAPA on assay, dissolution and weight-variation failures, starting with Oral Solids", "70% of failures; Oral Solids = 74%", "Failure rate below 3%"],
+        ["High", "Engineering", "Service equipment before it becomes Critical; use the maintenance-state model as an early flag", "6.9% vs 3.1% failure rate; model finds 69% of Critical", "No batch run on Critical equipment"],
+        ["High", "Procurement", "Buy to the reorder-point policy; stop receipts for overstocked items, especially Equipment", "1,033 items overstocked; KES 64 bn beyond 180 days", "Days of cover under 180"],
+        ["Medium", "Branch stores", "Weekly reorder list and stock-out watch-list from the Gradient Boosting model", "Catches 80% of stock-outs two weeks ahead", "Fewer stock-out weeks"],
+        ["Medium", "Planning", "Plan weekly volumes with Croston-SBA; track monthly quality with the trend model", "20% better than last year's pattern; trend WAPE 7%", "Forecast error reported monthly"],
+        ["Medium", "Finance", "Review credit-account terms and collections", f"KES {sales['balance_due_kes'].sum() / 1e6:,.0f} m unpaid, all on credit accounts", "Unpaid share falling"],
+        ["Low", "QA", "Use the failure ranking and abnormal-condition list only for extra checks", "Both signals are weak (lift 1.4–1.5)", "Failures found per check"],
+    ], columns=["Priority", "Owner", "Action", "Evidence", "Measure of success"]), hide_index=True, width="stretch")
+    st.caption("Limitations: no opening stock, expiry dates or supplier lead times; batches cannot be linked to sales; "
+               "model scores are from single test sets; no savings are claimed until stock values are confirmed with stores.")
