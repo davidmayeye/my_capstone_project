@@ -8,7 +8,7 @@ import numpy as np                                                          # nu
 import pandas as pd                                                         # tables
 import streamlit as st                                                      # dashboard
 
-st.set_page_config(page_title="POI Capstone Dashboard", page_icon="🧬", layout="wide")  # page settings
+st.set_page_config(page_title="POI Capstone Dashboard", layout="wide")  # page settings
 alt.data_transformers.disable_max_rows()                                    # allow charts with many points
 TEAL, NAVY, CORAL, GOLD, GREY = "#0e7c7b", "#17324d", "#e4572e", "#f3a712", "#8d99ae"  # chart colours
 TONES = {"teal": ("#0b5d5c", "#17a398"), "navy": ("#17324d", "#2f6690"), "coral": ("#a4243b", "#e4572e"),  # card gradients
@@ -39,7 +39,7 @@ def kpi(col, icon, label, value, sub="", tone="teal", bar=None):            # on
     a, z = TONES[tone]                                                      # gradient colours
     meter = f'<div class="bar"><div style="width:{min(max(bar, 0), 100):.0f}%"></div></div>' if bar is not None else ""
     col.markdown(f'''<div class="kpi" style="background: linear-gradient(135deg, {a}, {z});">
-      <div class="top"><div class="label">{label}</div><div class="icon">{icon}</div></div>
+      <div class="top"><div class="label">{label}</div>{f'<div class="icon">{icon}</div>' if icon.strip() else ''}</div>
       <div class="value">{value}</div><div class="sub">{sub}</div>{meter}</div>''', unsafe_allow_html=True)
 
 
@@ -158,16 +158,16 @@ def finance_page(sales, moves, pal, tn):                                    # th
     due, billed = d["balance_due_kes"].sum(), d["total_amount_kes"].sum()
     cogs12 = d.loc[d["month"] > d["month"].max() - pd.DateOffset(months=12), "cogs_kes"].sum()  # last 12 months cost of sales
     k = st.columns(4)
-    kpi(k[0], "💰", "Net revenue", f"KES {rev / 1e9:.2f} bn", f"{len(d):,} delivered orders, 2014–2025", tn[0])
-    kpi(k[1], "📈", "Gross profit", f"KES {gp / 1e9:.2f} bn", f"{gp / rev:.1%} gross margin", tn[1], bar=gp / rev * 100)
-    kpi(k[2], "🏷️", "Discounts given", f"KES {disc / 1e6:,.0f} m", f"{disc / gross:.1%} of gross sales", tn[2], bar=disc / gross * 100)
-    kpi(k[3], "🧾", "Receivables", f"KES {due / 1e6:,.0f} m", f"{1 - due / billed:.1%} of billed value collected", tn[3],
+    kpi(k[0], "", "Net revenue", f"KES {rev / 1e9:.2f} bn", f"{len(d):,} delivered orders, 2014–2025", tn[0])
+    kpi(k[1], "", "Gross profit", f"KES {gp / 1e9:.2f} bn", f"{gp / rev:.1%} gross margin", tn[1], bar=gp / rev * 100)
+    kpi(k[2], "", "Discounts given", f"KES {disc / 1e6:,.0f} m", f"{disc / gross:.1%} of gross sales", tn[2], bar=disc / gross * 100)
+    kpi(k[3], "", "Receivables", f"KES {due / 1e6:,.0f} m", f"{1 - due / billed:.1%} of billed value collected", tn[3],
         bar=(1 - due / billed) * 100)
     k = st.columns(4)
-    kpi(k[0], "🏛️", "VAT billed", f"KES {d['vat_amount_kes'].sum() / 1e9:.2f} bn", "at 16% on net sales", tn[4])
-    kpi(k[1], "❌", "Cancelled orders", f"KES {canc['net_amount_excl_vat_kes'].sum() / 1e6:,.0f} m", f"{len(canc):,} orders not delivered", tn[2])
-    kpi(k[2], "📦", "Stock at cost", f"KES {stock_value / 1e9:.1f} bn", f"{stock_value / (cogs12 / 12):,.0f} months of cost of sales", tn[3])
-    kpi(k[3], "🛍️", "Average order", f"KES {rev / len(d):,.0f}", "net, excluding VAT", tn[5])
+    kpi(k[0], "", "VAT billed", f"KES {d['vat_amount_kes'].sum() / 1e9:.2f} bn", "at 16% on net sales", tn[4])
+    kpi(k[1], "", "Cancelled orders", f"KES {canc['net_amount_excl_vat_kes'].sum() / 1e6:,.0f} m", f"{len(canc):,} orders not delivered", tn[2])
+    kpi(k[2], "", "Stock at cost", f"KES {stock_value / 1e9:.1f} bn", f"{stock_value / (cogs12 / 12):,.0f} months of cost of sales", tn[3])
+    kpi(k[3], "", "Average order", f"KES {rev / len(d):,.0f}", "net, excluding VAT", tn[5])
 
     st.subheader("Revenue, gross profit and margin by year")
     yr = d.groupby(d["sale_date"].dt.year.rename("year")).agg(revenue=("net_amount_excl_vat_kes", "sum"),
@@ -211,10 +211,10 @@ def finance_page(sales, moves, pal, tn):                                    # th
     last = d["month"] > d["month"].max() - pd.DateOffset(months=12)         # last 12 months of sales
     rev12, gp12, cogs12b = (d.loc[last, c].sum() for c in ["net_amount_excl_vat_kes", "gross_profit_kes", "cogs_kes"])
     k = st.columns(4)
-    kpi(k[0], "📊", "Gross profit margin", f"{gp / rev:.1%}", f"last 12 months {gp12 / rev12:.1%}", tn[1], bar=gp / rev * 100)
-    kpi(k[1], "➕", "Markup on cost", f"{gp / cogs:.1%}", "gross profit ÷ cost of goods sold", tn[4])
-    kpi(k[2], "🧮", "Gross profit per order", f"KES {gp / len(d):,.0f}", f"on an average order of KES {rev / len(d):,.0f}", tn[5])
-    kpi(k[3], "💸", "Discount share of profit", f"{disc / gp:.1%}", "discounts given ÷ gross profit", tn[2], bar=disc / gp * 100)
+    kpi(k[0], "", "Gross profit margin", f"{gp / rev:.1%}", f"last 12 months {gp12 / rev12:.1%}", tn[1], bar=gp / rev * 100)
+    kpi(k[1], "", "Markup on cost", f"{gp / cogs:.1%}", "gross profit ÷ cost of goods sold", tn[4])
+    kpi(k[2], "", "Gross profit per order", f"KES {gp / len(d):,.0f}", f"on an average order of KES {rev / len(d):,.0f}", tn[5])
+    kpi(k[3], "", "Discount share of profit", f"{disc / gp:.1%}", "discounts given ÷ gross profit", tn[2], bar=disc / gp * 100)
     mm = d.groupby("month").agg(revenue=("net_amount_excl_vat_kes", "sum"), gp=("gross_profit_kes", "sum"))
     mm["Monthly margin (%)"] = mm["gp"] / mm["revenue"] * 100               # gross margin each month
     mm["12-month rolling margin (%)"] = mm["gp"].rolling(12).sum() / mm["revenue"].rolling(12).sum() * 100
@@ -254,13 +254,11 @@ def finance_page(sales, moves, pal, tn):                                    # th
     dso, turns = due / billed12 * 365, cogs12b / stock_value                # days sales outstanding, stock turns a year
     top10 = d.groupby("customer_id")["net_amount_excl_vat_kes"].sum().nlargest(10).sum() / rev  # customer concentration
     k = st.columns(4)
-    kpi(k[0], "⏳", "Days sales outstanding", f"{dso:,.0f} days", "unpaid ÷ last 12 months billed × 365", tn[3])
-    kpi(k[1], "🔄", "Inventory turnover", f"{turns:.2f}× a year", f"about {365 / turns:,.0f} days of stock on hand", tn[2])
-    kpi(k[2], "💹", "GMROI", f"{gp12 / stock_value:.3f}", "gross profit per KES 1 of stock at cost", tn[5])
-    kpi(k[3], "👥", "Top 10 customers", f"{top10:.1%}", f"of revenue · {d['customer_id'].nunique():,} customers", tn[4], bar=top10 * 100)
-    st.caption("Stock is rebuilt from zero (no opening stock in the data) and is mostly Equipment, so turnover is very low and GMROI tiny: "
-               "the clearest sign that purchasing runs far ahead of sales. Net profit cannot be calculated because the data has no operating costs.")
-
+    kpi(k[0], "", "Days sales outstanding", f"{dso:,.0f} days", "unpaid ÷ last 12 months billed × 365", tn[3])
+    kpi(k[1], "", "Inventory turnover", f"{turns:.2f}× a year", f"about {365 / turns:,.0f} days of stock on hand", tn[2])
+    kpi(k[2], "", "GMROI", f"{gp12 / stock_value:.3f}", "gross profit per KES 1 of stock at cost", tn[5])
+    kpi(k[3], "", "Top 10 customers", f"{top10:.1%}", f"of revenue · {d['customer_id'].nunique():,} customers", tn[4], bar=top10 * 100)
+    st.caption("Stock rebuilt from zero, mostly Equipment. Net profit not available (no operating costs).")
     st.subheader("Receivables (unpaid balances)")
     ag = d[d["balance_due_kes"] > 0].copy()                                 # invoices with money owed
     ag["age"] = pd.cut(ag["age_days"], [-1, 30, 90, 180, 365, 100000], labels=["0–30 days", "31–90", "91–180", "181–365", "over 1 year"])
@@ -288,11 +286,11 @@ def finance_page(sales, moves, pal, tn):                                    # th
     margin12 = m12["gross_profit_kes"].sum() / m12["net_amount_excl_vat_kes"].sum()  # trailing 12-month margin
     k = st.columns(4)
     growth = future.sum() / y.iloc[-12:].sum() - 1
-    kpi(k[0], "🔮", "Forecast revenue", f"KES {future.sum():,.0f} m", "next 12 months", tn[0])
-    kpi(k[1], "📈" if growth >= 0 else "📉", "Change vs last 12 months", f"{growth:+.1%}", f"last 12 months KES {y.iloc[-12:].sum():,.0f} m",
+    kpi(k[0], "", "Forecast revenue", f"KES {future.sum():,.0f} m", "next 12 months", tn[0])
+    kpi(k[1], "" if growth >= 0 else "", "Change vs last 12 months", f"{growth:+.1%}", f"last 12 months KES {y.iloc[-12:].sum():,.0f} m",
         tn[1] if growth >= 0 else tn[2])
-    kpi(k[2], "💵", "Projected gross profit", f"KES {future.sum() * margin12:,.0f} m", f"at the last 12 months' margin ({margin12:.1%})", tn[4])
-    kpi(k[3], "🎯", "Forecast error", f"{acc.loc['Holt-Winters', 'WAPE (%)']:.1f}%",
+    kpi(k[2], "", "Projected gross profit", f"KES {future.sum() * margin12:,.0f} m", f"at the last 12 months' margin ({margin12:.1%})", tn[4])
+    kpi(k[3], "", "Forecast error", f"{acc.loc['Holt-Winters', 'WAPE (%)']:.1f}%",
         f"WAPE on last 12 months vs {acc.loc['Seasonal naive', 'WAPE (%)']:.1f}% seasonal naive", tn[5])
     st.line_chart(pd.DataFrame({"Actual (KES m)": y, "Forecast (KES m)": future}), color=[c1, c3])
     c = st.columns(2)
@@ -304,10 +302,7 @@ def finance_page(sales, moves, pal, tn):                                    # th
     c[1].markdown("**Monthly forecast**")
     c[1].dataframe(out, width="stretch")
     st.download_button("Download revenue forecast (CSV)", out.to_csv(), "revenue_forecast.csv", key="fin_dl")
-    st.caption("Gross profit uses the unit cost recorded on each sale's stock movement. Receivables age is measured at the last sale date "
-               "in the data. Forecasts use Holt-Winters (damped trend, monthly seasonality).")
-
-
+    st.caption("Gross profit at recorded unit cost · Holt-Winters forecast.")
 def finance_headline(sales, moves):                                         # three numbers for the executive summary
     d, canc, stock_value = finance_tables(sales, moves)
     rev, gp = d["net_amount_excl_vat_kes"].sum(), d["gross_profit_kes"].sum()
@@ -320,12 +315,11 @@ def exec_commercial(sales, moves, tn):                                      # co
     h = finance_headline(sales, moves)
     st.subheader("Commercial picture")
     k = st.columns(4)
-    kpi(k[0], "💰", "Revenue & margin", f"KES {h['revenue'] / 1e9:.1f} bn", f"{h['margin']:.1%} gross margin, 2014–2025", tn[0], bar=h["margin"] * 100)
-    kpi(k[1], "🔮", "Next 12 months", f"KES {h['forecast'] / 1e3:.2f} bn", f"{h['forecast'] / h['last12'] - 1:+.1%} vs last 12 months", tn[1])
-    kpi(k[2], "🧾", "Receivables", f"KES {h['unpaid'] / 1e6:,.0f} m", "unpaid, all on credit accounts", tn[3])
-    kpi(k[3], "📦", "Stock at cost", f"KES {h['stock_value'] / 1e9:.1f} bn", "cash tied up in inventory", tn[2])
-    st.caption(f"Cancelled orders took KES {h['cancelled'] / 1e6:,.0f} m of revenue off the books. Freeing over-bought stock and collecting "
-               "credit-account balances are the two biggest cash levers; see the Commercial & finance view for detail.")
+    kpi(k[0], "", "Revenue & margin", f"KES {h['revenue'] / 1e9:.1f} bn", f"{h['margin']:.1%} gross margin, 2014–2025", tn[0], bar=h["margin"] * 100)
+    kpi(k[1], "", "Next 12 months", f"KES {h['forecast'] / 1e3:.2f} bn", f"{h['forecast'] / h['last12'] - 1:+.1%} vs last 12 months", tn[1])
+    kpi(k[2], "", "Receivables", f"KES {h['unpaid'] / 1e6:,.0f} m", "unpaid, all on credit accounts", tn[3])
+    kpi(k[3], "", "Stock at cost", f"KES {h['stock_value'] / 1e9:.1f} bn", "cash tied up in inventory", tn[2])
+    st.caption(f"Cancelled orders: KES {h['cancelled'] / 1e6:,.0f} m of revenue lost.")
 
 
 # ------------------------------------------------------------------ what-if predictor (enter values, see the predicted outcome)
@@ -383,8 +377,7 @@ def predictor_tab(df, target, key, pal, tn, sales, moves, policy):          # th
     med = lambda col: float(df[col].median())
 
     if part == "Batch outcome":
-        st.caption(f"Enter a planned batch. Failure risk: logistic regression (test ROC-AUC {scores['risk_auc']:.2f}, a weak signal). "
-                   f"Yield: random forest (test MAE {scores['yield_mae']:.2f} points vs {scores['yield_base']:.2f} for the average).")
+        st.caption(f"Failure risk: logistic regression (ROC-AUC {scores['risk_auc']:.2f}) · Yield: random forest (MAE {scores['yield_mae']:.2f})")
         c = st.columns(3)
         v = {"manufacturing_section": c[0].selectbox("Manufacturing section", sorted(df["manufacturing_section"].unique()), key=f"s_{key}"),
              "dosage_form": c[0].selectbox("Dosage form", sorted(df["dosage_form"].unique()), key=f"d_{key}"),
@@ -395,11 +388,11 @@ def predictor_tab(df, target, key, pal, tn, sales, moves, policy):          # th
         p, yl = risk.predict_proba(row)[0, 1], ymodel.predict(row)[0]
         band = "High" if p >= p90 else ("Medium" if p >= p50 else "Low")
         k = st.columns(4)
-        kpi(k[0], "🎯", "Failure risk score", f"{p:.2f}", f"{p / avg_risk:.1f}× the average batch", {"High": tn[2], "Medium": tn[5], "Low": tn[1]}[band], bar=p * 100)
-        kpi(k[1], "🚦", "Risk band", band, "High = top 10% of past batches", {"High": tn[2], "Medium": tn[5], "Low": tn[1]}[band])
-        kpi(k[2], "⚗️", "Predicted yield", f"{yl:.2f}%", f"target {v['target_yield']:.2f}%", tn[0])
+        kpi(k[0], "", "Failure risk score", f"{p:.2f}", f"{p / avg_risk:.1f}× the average batch", {"High": tn[2], "Medium": tn[5], "Low": tn[1]}[band], bar=p * 100)
+        kpi(k[1], "", "Risk band", band, "High = top 10% of past batches", {"High": tn[2], "Medium": tn[5], "Low": tn[1]}[band])
+        kpi(k[2], "", "Predicted yield", f"{yl:.2f}%", f"target {v['target_yield']:.2f}%", tn[0])
         gap = yl - v["target_yield"]
-        kpi(k[3], "📏", "Yield vs target", f"{gap:+.2f} pts", "above target" if gap >= 0 else "below target", tn[1] if gap >= 0 else tn[2])
+        kpi(k[3], "", "Yield vs target", f"{gap:+.2f} pts", "above target" if gap >= 0 else "below target", tn[1] if gap >= 0 else tn[2])
         st.markdown("**See how the prediction moves when you change one input** (all other inputs stay as entered)")
         vary = st.selectbox("Input to vary", [LABELS[c] for c in P_NUM] + ["Maintenance status"], key=f"vary_{key}")
         if vary == "Maintenance status":
@@ -421,8 +414,7 @@ def predictor_tab(df, target, key, pal, tn, sales, moves, policy):          # th
     elif part == "Equipment maintenance status":
         lim = df.groupby("maintenance_status")["maintenance_days_ago"].agg(["min", "max"])  # the service rule seen in the data
         due, crit = int(lim.loc["Due Soon", "min"]), int(lim.loc["Critical", "min"])
-        st.caption(f"In this data the status follows the service schedule exactly: Current up to {due - 1} days since the last service, "
-                   f"Due Soon from {due} days, Critical from {crit} days. Enter a machine's details to see its status and risk.")
+        st.caption(f"Rule in the data: Current < {due} days · Due Soon {due}–{crit - 1} · Critical {crit}+")
         c = st.columns(3)
         days = c[0].number_input("Days since maintenance", 0, 400, 60, key=f"ed_{key}")
         age = c[1].number_input("Equipment age (years)", 0.0, 40.0, round(med("equipment_age_years"), 1), key=f"ea_{key}")
@@ -433,11 +425,11 @@ def predictor_tab(df, target, key, pal, tn, sales, moves, policy):          # th
         near = df[(df["manufacturing_section"] == sec) & (df["equipment_age_years"].sub(age).abs() <= 2)]  # similar machines
         tone = {"Current": tn[1], "Due Soon": tn[5], "Critical": tn[2]}
         k = st.columns(4)
-        kpi(k[0], "🔧", "Status", pred, f"{days} days since the last service", tone[pred])
-        kpi(k[1], "⏱️", "Days to next stage", "now" if pred == "Critical" else f"{nxt}",
+        kpi(k[0], "", "Status", pred, f"{days} days since the last service", tone[pred])
+        kpi(k[1], "", "Days to next stage", "now" if pred == "Critical" else f"{nxt}",
             "Critical: service immediately" if pred == "Critical" else ("until Due Soon" if pred == "Current" else "until Critical"), tone[pred])
-        kpi(k[2], "⚠️", "Failure rate at this status", f"{hist[pred]:.1%}", f"vs {hist['Current']:.1%} when Current", tone[pred])
-        kpi(k[3], "🏭", "Similar machines", f"{near[target].mean():.1%}" if len(near) else "–",
+        kpi(k[2], "", "Failure rate at this status", f"{hist[pred]:.1%}", f"vs {hist['Current']:.1%} when Current", tone[pred])
+        kpi(k[3], "", "Similar machines", f"{near[target].mean():.1%}" if len(near) else "–",
             f"failure rate, {sec}, age ±2 years ({len(near):,} batches)", tn[4])
         bins = pd.cut(df["maintenance_days_ago"], range(0, 200, 10))       # 10-day bands
         fr = df.groupby(bins, observed=True)[target].agg(rate="mean", batches="size").reset_index()
@@ -457,7 +449,7 @@ def predictor_tab(df, target, key, pal, tn, sales, moves, policy):          # th
         br = c[0].selectbox("Branch", sorted(pol["branch_code"].unique()), key=f"rb_{key}")
         pid = c[1].selectbox("Product", sorted(pol.loc[pol["branch_code"] == br, "product_id"]), key=f"rp_{key}")
         it = pol[(pol["branch_code"] == br) & (pol["product_id"] == pid)].iloc[0]
-        st.caption(f"Prefilled from the data for {pid} ({it['category']}) at {br}: change any value to test a scenario.")
+        st.caption(f"{pid} · {it['category']} · {br}")
         c = st.columns(5)
         stock = c[0].number_input("Stock on hand (units)", 0.0, 1e7, float(max(it["stock_now"], 0)), key=f"rs_{key}")
         wk = c[1].number_input("Average weekly demand", 0.0, 1e5, float(it["avg_weekly"]), key=f"rw_{key}")
@@ -472,16 +464,14 @@ def predictor_tab(df, target, key, pal, tn, sales, moves, policy):          # th
         order = max(0.0, rop + cover * wk - stock)                          # order up to reorder point + cover
         status = "No demand" if daily == 0 else ("Reorder now" if stock <= rop else ("Overstock" if days > 180 else "OK"))
         k = st.columns(4)
-        kpi(k[0], "📅", "Days of cover", "∞" if np.isinf(days) else f"{days:,.0f}", "at the entered demand", tn[0])
-        kpi(k[1], "📍", "Reorder point", f"{rop:,.0f}", f"incl. safety stock {safety:,.0f}", tn[4])
-        kpi(k[2], "🛒", "Suggested order", f"{order:,.0f} units", f"to cover lead time + {cover} weeks", tn[5])
-        kpi(k[3], "🚦", "Status", status, "95% service level", {"Reorder now": tn[2], "Overstock": tn[5], "OK": tn[1]}.get(status, tn[3]))
+        kpi(k[0], "", "Days of cover", "∞" if np.isinf(days) else f"{days:,.0f}", "at the entered demand", tn[0])
+        kpi(k[1], "", "Reorder point", f"{rop:,.0f}", f"incl. safety stock {safety:,.0f}", tn[4])
+        kpi(k[2], "", "Suggested order", f"{order:,.0f} units", f"to cover lead time + {cover} weeks", tn[5])
+        kpi(k[3], "", "Status", status, "95% service level", {"Reorder now": tn[2], "Overstock": tn[5], "OK": tn[1]}.get(status, tn[3]))
         weeks = np.arange(0, 27)
         proj = pd.DataFrame({"week": weeks, "Stock if no order": np.maximum(stock - wk * weeks, 0),
                              "Reorder point": rop})
         st.line_chart(proj.set_index("week"), color=[c1, c3])
-        st.caption("Projected stock over the next 26 weeks at the entered demand, against the reorder point.")
-
     else:
         d, _, _ = finance_tables(sales, moves)
         cat = st.selectbox("Category", ["All"] + sorted(d["product_category"].unique()), key=f"pc_{key}")
@@ -499,10 +489,10 @@ def predictor_tab(df, target, key, pal, tn, sales, moves, policy):          # th
         per_unit = R * (1 + price / 100) * (1 - disc / 100) - C * (1 + cost / 100)  # margin per base volume
         be = (G / per_unit - 1) * 100 if per_unit > 0 else np.nan            # volume change that keeps gross profit flat
         k = st.columns(4)
-        kpi(k[0], "💰", "Revenue (12 months)", f"KES {R2 / 1e6:,.0f} m", f"{R2 / R - 1:+.1%} vs KES {R / 1e6:,.0f} m", tn[0])
-        kpi(k[1], "📈", "Gross profit", f"KES {G2 / 1e6:,.0f} m", f"{G2 / G - 1:+.1%} vs KES {G / 1e6:,.0f} m", tn[1] if G2 >= G else tn[2])
-        kpi(k[2], "📊", "Gross margin", f"{G2 / R2:.1%}" if R2 else "–", f"base {G / R:.1%}", tn[4])
-        kpi(k[3], "⚖️", "Break-even volume change", "n/a" if np.isnan(be) else f"{be:+.1f}%",
+        kpi(k[0], "", "Revenue (12 months)", f"KES {R2 / 1e6:,.0f} m", f"{R2 / R - 1:+.1%} vs KES {R / 1e6:,.0f} m", tn[0])
+        kpi(k[1], "", "Gross profit", f"KES {G2 / 1e6:,.0f} m", f"{G2 / G - 1:+.1%} vs KES {G / 1e6:,.0f} m", tn[1] if G2 >= G else tn[2])
+        kpi(k[2], "", "Gross margin", f"{G2 / R2:.1%}" if R2 else "–", f"base {G / R:.1%}", tn[4])
+        kpi(k[3], "", "Break-even volume change", "n/a" if np.isnan(be) else f"{be:+.1f}%",
             "needed to keep gross profit flat", tn[5])
         cmp = pd.DataFrame({"case": ["Base", "Base", "Scenario", "Scenario"], "measure": ["Revenue", "Gross profit"] * 2,
                             "kes_m": [R / 1e6, G / 1e6, R2 / 1e6, G2 / 1e6]})
@@ -510,11 +500,7 @@ def predictor_tab(df, target, key, pal, tn, sales, moves, policy):          # th
             x=alt.X("measure:N", title=None), xOffset="case:N", y=alt.Y("kes_m:Q", title="KES million"),
             color=alt.Color("case:N", scale=alt.Scale(range=[grey, c1])), tooltip=["case", "measure", alt.Tooltip("kes_m:Q", format=",.0f")])
             .properties(height=280, title="Last 12 months: base vs your scenario"), width="stretch")
-        st.caption("Simple arithmetic on the last 12 months, with no price elasticity: set the volume change you expect from the price "
-                   "or discount change yourself.")
-
-
-# ------------------------------------------------------------------ executive summary: how the features drove the findings
+        st.caption("Base: last 12 months · no price elasticity.")
 def _clean(name):                                                           # readable feature names from the model pipeline
     n = name.split("__", 1)[-1]
     for cat in P_CAT:
@@ -539,183 +525,164 @@ def exec_drivers(df, target, key, pal, tn, sales, moves, policy):
     c1, c2, c3, grey = pal
     risk, ymodel, scores, _, _ = whatif_models(df, target, key)             # the same models as the What-if tab
     st.subheader("How the features drove each finding")
-    st.caption("Every number below is computed live from the batch, sales and inventory data; model weights come from the What-if predictor models.")
 
     # ---- A. batch failure
-    st.markdown("#### A. Why do batches fail? — the drivers of failure risk")
+    st.markdown("**A. Batch failure drivers**")
+    rate = df.groupby("maintenance_status")[target].mean()
+    age_band = pd.cut(df["equipment_age_years"], [-1, 5, 10, 100], labels=["0–5 yrs", "5–10 yrs", "10+ yrs"])
+    exp_band = pd.cut(df["operator_experience_years"], [-1, 2, 5, 10, 100], labels=["0–2 yrs", "3–5 yrs", "6–10 yrs", "10+ yrs"])
+    ar, er = df.groupby(age_band, observed=True)[target].mean(), df.groupby(exp_band, observed=True)[target].mean()
+    dose = df.groupby("dosage_form")[target].mean().sort_values(ascending=False)
+    k = st.columns(4)
+    kpi(k[0], "", "Critical vs Current", f"{rate['Critical']:.1%} vs {rate['Current']:.1%}", "failure rate", tn[2])
+    kpi(k[1], "", "Equipment 10+ vs 0–5 yrs", f"{ar.iloc[-1]:.1%} vs {ar.iloc[0]:.1%}", "failure rate", tn[5])
+    kpi(k[2], "", "Operators 0–2 vs 10+ yrs", f"{er.iloc[0]:.1%} vs {er.iloc[-1]:.1%}", "failure rate", tn[3])
+    kpi(k[3], "", f"Riskiest form: {dose.index[0]}", f"{dose.iloc[0]:.1%}", f"plant average {df[target].mean():.1%}", tn[0])
     names = [_clean(n) for n in risk[0].get_feature_names_out()]
-    coef = pd.Series(risk[-1].coef_.ravel(), index=names)                   # push on the log-odds per standard deviation / category
-    top = coef.reindex(coef.abs().sort_values(ascending=False).index).head(12).reset_index()
+    coef = pd.Series(risk[-1].coef_.ravel(), index=names)                   # push on the log-odds
+    top = coef.reindex(coef.abs().sort_values(ascending=False).index).head(10).reset_index()
     top.columns = ["feature", "weight"]
     top["direction"] = np.where(top["weight"] > 0, "raises risk", "lowers risk")
-    c = st.columns([3, 2])
-    c[0].altair_chart(alt.Chart(top).mark_bar().encode(
-        y=alt.Y("feature:N", sort=None, title=None), x=alt.X("weight:Q", title="Effect on the odds of failure (model weight)"),
-        color=alt.Color("direction:N", scale=alt.Scale(domain=["raises risk", "lowers risk"], range=[c3, c1]), title=None),
-        tooltip=["feature", alt.Tooltip("weight:Q", format=".3f"), "direction"]).properties(height=340), width="stretch")
-    rate = df.groupby("maintenance_status")[target].mean()
-    age_band = pd.cut(df["equipment_age_years"], [-1, 5, 10, 100], labels=["0–5 years", "5–10 years", "over 10 years"])
-    exp_band = pd.cut(df["operator_experience_years"], [-1, 2, 5, 10, 100], labels=["0–2", "3–5", "6–10", "over 10"])
-    ar, er = df.groupby(age_band, observed=True)[target].mean(), df.groupby(exp_band, observed=True)[target].mean()
-    c[1].markdown(f"""
-- **Maintenance status** is the clearest single driver: Critical batches fail at **{rate['Critical']:.1%}**, more than double
-  Current (**{rate['Current']:.1%}**). Due Soon ({rate['Due Soon']:.1%}) is no worse than Current.
-- **Equipment age** raises risk steadily: **{ar.iloc[0]:.1%}** on machines up to 5 years old vs **{ar.iloc[-1]:.1%}** over 10 years.
-- **Operator experience** protects: operators with 0–2 years fail **{er.iloc[0]:.1%}** of batches, those with over 10 years **{er.iloc[-1]:.1%}**.
-- **Dosage form** matters through product difficulty: {", ".join(f"{k} ({v:.1%})" for k, v in df.groupby("dosage_form")[target].mean().nlargest(3).items())}
-  have the highest failure rates.
-- Process readings (temperature, pressure, humidity) carry **small weights**: they stay inside limits on almost every batch, which is
-  why failure cannot be predicted well (test ROC-AUC {scores['risk_auc']:.2f}).""")
     eff = pd.DataFrame([_band_effect(df, target, col, LABELS[col]) for col in
                         ["equipment_age_years", "operator_experience_years", "maintenance_days_ago", "raw_material_quality",
                          "temp_variance", "production_hours", "batch_size"]],
-                       columns=["Feature", "Lowest 25%", "Failure rate", "Highest 25%", "Failure rate ", "Difference (points)"])
-    st.markdown("**Failure rate in the lowest vs highest quarter of each feature**")
-    st.dataframe(eff.sort_values("Difference (points)", key=abs, ascending=False).round(2), hide_index=True, width="stretch")
+                       columns=["feature", "low", "low_rate", "high", "high_rate", "diff"])
+    c = st.columns(2)
+    c[0].altair_chart(alt.Chart(top).mark_bar().encode(
+        y=alt.Y("feature:N", sort=None, title=None), x=alt.X("weight:Q", title="Model weight"),
+        color=alt.Color("direction:N", scale=alt.Scale(domain=["raises risk", "lowers risk"], range=[c3, c1]), title=None, legend=alt.Legend(orient="bottom")),
+        tooltip=["feature", alt.Tooltip("weight:Q", format=".3f")]).properties(height=320, title="Failure model: top 10 weights"), width="stretch")
+    c[1].altair_chart(alt.Chart(eff).mark_bar().encode(
+        y=alt.Y("feature:N", sort=alt.EncodingSortField("diff", op="sum", order="descending"), title=None),
+        x=alt.X("diff:Q", title="Failure rate, top vs bottom quarter (points)"),
+        color=alt.condition(alt.datum.diff > 0, alt.value(c3), alt.value(c1)),
+        tooltip=["feature", "low", "low_rate", "high", "high_rate", alt.Tooltip("diff:Q", format=".2f")])
+        .properties(height=320, title="Effect of each feature on failure rate"), width="stretch")
 
     # ---- B. yield
-    st.markdown("#### B. What sets the yield? — drivers of the yield model")
+    st.markdown("**B. Yield drivers**")
     imp = pd.Series(ymodel[-1].feature_importances_, index=[_clean(n) for n in ymodel[0].get_feature_names_out()])
-    imp = imp.groupby(lambda n: n.split(":")[0]).sum().sort_values(ascending=False).head(10)  # one bar per feature (categories summed)
+    imp = imp.groupby(lambda n: n.split(":")[0]).sum().sort_values(ascending=False).head(8)
     yi = (imp / imp.sum() * 100).reset_index()
     yi.columns = ["feature", "share"]
-    c = st.columns([3, 2])
-    c[0].altair_chart(alt.Chart(yi).mark_bar(color=c1).encode(
-        y=alt.Y("feature:N", sort="-x", title=None), x=alt.X("share:Q", title="Share of the model's importance (%)"),
-        tooltip=["feature", alt.Tooltip("share:Q", format=".1f")]).properties(height=300), width="stretch")
-    lead = yi["feature"].iloc[0]
-    c[1].markdown(f"""
-- **{lead}** carries **{yi['share'].iloc[0]:.0f}%** of the yield model's importance, followed by **{yi['feature'].iloc[1]}** and
-  **{yi['feature'].iloc[2]}**.
-- The model predicts yield within **{scores['yield_mae']:.2f} points** on average, against {scores['yield_base']:.2f} points
-  for simply using the plant average: **{(1 - scores['yield_mae'] / scores['yield_base']):.0%} better**.
-- Planning can therefore estimate output per batch before production starts, even though pass/fail cannot be predicted.""")
+    c = st.columns([1, 3])
+    kpi(c[0], "", "Yield error", f"{scores['yield_mae']:.2f} pts", f"vs {scores['yield_base']:.2f} using the average", tn[0])
+    kpi(c[0], "", "Better than average", f"{1 - scores['yield_mae'] / scores['yield_base']:.0%}", "random forest", tn[1],
+        bar=(1 - scores["yield_mae"] / scores["yield_base"]) * 100)
+    c[1].altair_chart(alt.Chart(yi).mark_bar(color=c1).encode(
+        y=alt.Y("feature:N", sort="-x", title=None), x=alt.X("share:Q", title="Share of importance (%)"),
+        tooltip=["feature", alt.Tooltip("share:Q", format=".1f")]).properties(height=270, title="Yield model: importance"), width="stretch")
 
     # ---- C. rise since 2019
-    st.markdown("#### C. Why did failures rise after 2019? — ageing equipment")
+    st.markdown("**C. Rise since 2019: ageing equipment**")
     yr = df.groupby("year").agg(failure_rate=(target, "mean"),
                                 old_share=("equipment_age_years", lambda s: (s > 10).mean())).reset_index()
     yr[["failure_rate", "old_share"]] *= 100
+    early, late = yr[yr["year"].between(2014, 2018)], yr[yr["year"].between(2020, 2025)]
+    c = st.columns([1, 3])
+    kpi(c[0], "", "Equipment 10+ yrs", f"{early['old_share'].mean():.0f}% → {late['old_share'].mean():.0f}%", "share of batches, 2014–18 → 2020–25", tn[5])
+    kpi(c[0], "", "Failure rate", f"{early['failure_rate'].mean():.2f}% → {late['failure_rate'].mean():.2f}%", "2014–18 → 2020–25", tn[2])
     base = alt.Chart(yr).encode(x=alt.X("year:O", title=None))
-    c = st.columns([3, 2])
-    c[0].altair_chart(alt.layer(
-        base.mark_area(color=grey, opacity=0.35).encode(y=alt.Y("old_share:Q", title="Batches on equipment over 10 years old (%)")),
+    c[1].altair_chart(alt.layer(
+        base.mark_area(color=grey, opacity=0.35).encode(y=alt.Y("old_share:Q", title="Equipment 10+ yrs (% of batches)")),
         base.mark_line(color=c3, point=True).encode(y=alt.Y("failure_rate:Q", title="Failure rate (%)"),
                                                     tooltip=["year", alt.Tooltip("failure_rate:Q", format=".2f"), alt.Tooltip("old_share:Q", format=".0f")]))
-        .resolve_scale(y="independent").properties(height=300), width="stretch")
-    early, late = yr[yr["year"].between(2014, 2018)], yr[yr["year"].between(2020, 2025)]
-    c[1].markdown(f"""
-- The share of batches made on equipment **over 10 years old** rose from **{early['old_share'].mean():.0f}%** (2014–18) to
-  **{late['old_share'].mean():.0f}%** (2020–25).
-- Over the same periods the failure rate rose from **{early['failure_rate'].mean():.2f}%** to **{late['failure_rate'].mean():.2f}%**.
-- The two lines move together: the rise is mainly an **ageing-fleet effect**, not a sudden process problem. Replacing or overhauling
-  the oldest machines is the lever.""")
+        .resolve_scale(y="independent").properties(height=270, title="Old-equipment share (area) vs failure rate (line)"), width="stretch")
 
-    # ---- D. what fixing the drivers would be worth
-    # ---- D. sales: revenue and margin
-    st.markdown("#### D. What drives revenue and margin? — sales data")
+    # ---- D. sales
+    st.markdown("**D. Revenue and margin drivers**")
     d, _, _ = finance_tables(sales, moves)                                  # delivered orders with cost and gross profit
-    yr = d.groupby(d["sale_date"].dt.year.rename("year")).agg(revenue=("net_amount_excl_vat_kes", "sum"), units=("quantity", "sum"),
-                                                              gp=("gross_profit_kes", "sum"), orders=("sale_id", "size"))
-    yr["price_per_unit"] = yr["revenue"] / yr["units"]                       # average net price per unit sold
+    yr = d.groupby(d["sale_date"].dt.year.rename("year")).agg(revenue=("net_amount_excl_vat_kes", "sum"), units=("quantity", "sum"))
+    yr["price_per_unit"] = yr["revenue"] / yr["units"]
     first, last_ = yr.iloc[0], yr.iloc[-1]
-    idx = (yr[["revenue", "units", "price_per_unit"]] / yr[["revenue", "units", "price_per_unit"]].iloc[0] * 100).reset_index()
-    idx = idx.rename(columns={"revenue": "Revenue", "units": "Units sold", "price_per_unit": "Net price per unit"}).melt("year", var_name="measure", value_name="index")
-    c = st.columns([3, 2])
-    c[0].altair_chart(alt.Chart(idx).mark_line(point=True).encode(
-        x=alt.X("year:O", title=None), y=alt.Y("index:Q", title=f"Index ({int(yr.index[0])} = 100)"),
-        color=alt.Color("measure:N", scale=alt.Scale(range=[c1, c3, grey]), title=None),
-        tooltip=["year", "measure", alt.Tooltip("index:Q", format=".0f")]).properties(height=300, title="Revenue growth = volume × price"),
-        width="stretch")
     dm = d.groupby("discount_pct").agg(gp=("gross_profit_kes", "sum"), rev=("net_amount_excl_vat_kes", "sum"), units=("quantity", "median"))
     dm["margin"] = dm["gp"] / dm["rev"] * 100
     cm = d.groupby("product_category").agg(gp=("gross_profit_kes", "sum"), rev=("net_amount_excl_vat_kes", "sum"))
     cm["margin"] = cm["gp"] / cm["rev"] * 100
-    unpaid = d.groupby("payment_method")["balance_due_kes"].sum()
-    c[1].markdown(f"""
-- Revenue grew **{last_['revenue'] / first['revenue']:.1f}×** from {int(yr.index[0])} to {int(yr.index[-1])}
-  (KES {first['revenue'] / 1e6:,.0f} m → {last_['revenue'] / 1e6:,.0f} m). Units sold grew **{last_['units'] / first['units']:.1f}×**
-  and the net price per unit **{last_['price_per_unit'] / first['price_per_unit']:.2f}×**, so
-  {growth_driver(last_['units'] / first['units'], last_['price_per_unit'] / first['price_per_unit'])}.
-- **Discounts cut margin:** {dm['margin'].iloc[0]:.1f}% with no discount vs {dm['margin'].iloc[-1]:.1f}% at {dm.index[-1]:g}% discount,
-  while the median order grows from {dm['units'].iloc[0]:.0f} to {dm['units'].iloc[-1]:.0f} units — a volume discount.
-- **Product mix:** margins range from {cm['margin'].min():.1f}% ({cm['margin'].idxmin()}) to {cm['margin'].max():.1f}% ({cm['margin'].idxmax()}).
-- **Unpaid balances come only from credit accounts** (KES {unpaid.get('Credit Account', 0) / 1e6:,.0f} m of
-  KES {unpaid.sum() / 1e6:,.0f} m): payment terms, not customers paying cash, drive receivables.""")
-    drv = pd.DataFrame([
-        ["Discount level", f"{dm.index[0]:g}%: {dm['margin'].iloc[0]:.1f}%", f"{dm.index[-1]:g}%: {dm['margin'].iloc[-1]:.1f}%",
-         abs(dm["margin"].iloc[-1] - dm["margin"].iloc[0])],
-        ["Product category", f"{cm['margin'].idxmin()}: {cm['margin'].min():.1f}%", f"{cm['margin'].idxmax()}: {cm['margin'].max():.1f}%",
-         cm["margin"].max() - cm["margin"].min()]], columns=["Driver of gross margin", "Low end", "High end", "Spread (points)"])
     br = d.groupby("branch_code").agg(gp=("gross_profit_kes", "sum"), rev=("net_amount_excl_vat_kes", "sum"))
     br["margin"] = br["gp"] / br["rev"] * 100
-    drv.loc[len(drv)] = ["Branch", f"{br['margin'].idxmin()}: {br['margin'].min():.1f}%", f"{br['margin'].idxmax()}: {br['margin'].max():.1f}%",
-                         br["margin"].max() - br["margin"].min()]
-    st.dataframe(drv.round(1), hide_index=True, width="stretch")
+    unpaid = d.groupby("payment_method")["balance_due_kes"].sum()
+    k = st.columns(4)
+    kpi(k[0], "", "Revenue growth", f"{last_['revenue'] / first['revenue']:.1f}×", f"{int(yr.index[0])}–{int(yr.index[-1])}", tn[0])
+    kpi(k[1], "", "Volume vs price", f"{last_['units'] / first['units']:.1f}× / {last_['price_per_unit'] / first['price_per_unit']:.1f}×",
+        "units sold / net price per unit", tn[4])
+    kpi(k[2], "", "Margin: 0% vs max discount", f"{dm['margin'].iloc[0]:.1f}% vs {dm['margin'].iloc[-1]:.1f}%", f"at {dm.index[-1]:g}% discount", tn[2])
+    kpi(k[3], "", "Unpaid on credit accounts", f"{unpaid.get('Credit Account', 0) / unpaid.sum():.0%}", f"KES {unpaid.sum() / 1e6:,.0f} m unpaid", tn[3])
+    idx = (yr[["revenue", "units", "price_per_unit"]] / yr[["revenue", "units", "price_per_unit"]].iloc[0] * 100).reset_index()
+    idx = idx.rename(columns={"revenue": "Revenue", "units": "Units sold", "price_per_unit": "Net price per unit"}).melt("year", var_name="measure", value_name="index")
+    spread = pd.DataFrame({"driver": ["Discount level", "Product category", "Branch"],
+                           "points": [abs(dm["margin"].iloc[-1] - dm["margin"].iloc[0]), cm["margin"].max() - cm["margin"].min(),
+                                      br["margin"].max() - br["margin"].min()]})
+    c = st.columns(3)
+    c[0].altair_chart(alt.Chart(idx).mark_line(point=True).encode(
+        x=alt.X("year:O", title=None), y=alt.Y("index:Q", title=f"Index ({int(yr.index[0])} = 100)"),
+        color=alt.Color("measure:N", scale=alt.Scale(range=[c3, c1, grey]), title=None, legend=alt.Legend(orient="bottom")),
+        tooltip=["year", "measure", alt.Tooltip("index:Q", format=".0f")]).properties(height=280, title="Revenue = volume × price"), width="stretch")
+    c[1].altair_chart(alt.Chart(dm.reset_index()).mark_bar(color=c3).encode(
+        x=alt.X("discount_pct:O", title="Discount (%)"), y=alt.Y("margin:Q", title="Gross margin (%)", scale=alt.Scale(zero=False)),
+        tooltip=["discount_pct", alt.Tooltip("margin:Q", format=".1f"), alt.Tooltip("units:Q", title="median units")])
+        .properties(height=280, title="Margin by discount level"), width="stretch")
+    c[2].altair_chart(alt.Chart(spread).mark_bar(color=c1).encode(
+        y=alt.Y("driver:N", sort="-x", title=None), x=alt.X("points:Q", title="Margin spread (points)"),
+        tooltip=["driver", alt.Tooltip("points:Q", format=".1f")]).properties(height=280, title="What moves the margin"), width="stretch")
 
-    # ---- E. inventory: over-buying and stock-outs
-    st.markdown("#### E. What drives the stock problems? — inventory data")
+    # ---- E. inventory
+    st.markdown("**E. Stock drivers**")
     m = moves.rename(columns=str.lower)
     pol = policy.rename(columns=str.lower)
     flow = pd.DataFrame({"received": m[m["quantity_change"] > 0].groupby("category" if "category" in m else "product_category")["quantity_change"].sum(),
                          "sold": d.groupby("product_category")["quantity"].sum()})
     flow["ratio"] = flow["received"] / flow["sold"]
-    c = st.columns([3, 2])
+    stat = pol.groupby("status").agg(items=("product_id", "size"), weekly_demand=("avg_weekly", "median"),
+                                     days_cover=("days_of_cover", "median")).reset_index()
+    ro = stat.set_index("status").get("weekly_demand", pd.Series()).get("Reorder now", np.nan)
+    ov = stat.set_index("status").loc["Overstock"] if "Overstock" in set(stat["status"]) else None
+    k = st.columns(3)
+    kpi(k[0], "", f"{flow['ratio'].idxmax()} received / sold", f"{flow['ratio'].max():.1f}×",
+        f"others {flow.drop(flow['ratio'].idxmax())['ratio'].min():.1f}–{flow.drop(flow['ratio'].idxmax())['ratio'].max():.1f}×", tn[2])
+    kpi(k[1], "", "Overstock: days of cover", f"{ov['days_cover']:,.0f}" if ov is not None else "–", "median per item", tn[5])
+    kpi(k[2], "", "Weekly demand: reorder vs overstock", f"{ro:.1f} vs {ov['weekly_demand']:.1f}" if ov is not None else "–",
+        "median units per week", tn[0])
+    c = st.columns(2)
     c[0].altair_chart(alt.Chart(flow.reset_index(names="category")).mark_bar().encode(
         y=alt.Y("category:N", sort="-x", title=None), x=alt.X("ratio:Q", title="Units received per unit sold"),
         color=alt.condition(alt.datum.ratio > 3, alt.value(c3), alt.value(c1)),
         tooltip=["category", alt.Tooltip("ratio:Q", format=".2f"), alt.Tooltip("received:Q", format=","), alt.Tooltip("sold:Q", format=",")])
-        .properties(height=260, title="Receipts vs sales by category (red = over 3×)"), width="stretch")
-    stat = pol.groupby("status").agg(items=("product_id", "size"), median_weekly_demand=("avg_weekly", "median"),
-                                     median_stock=("stock_now", "median"), median_days_cover=("days_of_cover", "median"))
-    ro, ov = (stat.loc[s] if s in stat.index else None for s in ["Reorder now", "Overstock"])
-    c[1].markdown(f"""
-- **Over-buying is the driver of overstock:** every category receives more than it sells; **{flow['ratio'].idxmax()}** receives
-  **{flow['ratio'].max():.1f}×** what it sells, the others {flow.drop(flow['ratio'].idxmax())['ratio'].min():.1f}–{flow.drop(flow['ratio'].idxmax())['ratio'].max():.1f}×.
-- Receipts arrive in fixed lots regardless of demand, so slow items pile up: overstocked items hold a median
-  **{ov['median_days_cover']:,.0f} days** of cover.""" + (f"""
-- **Stock-outs come from fast movers:** items to reorder now sell a median **{ro['median_weekly_demand']:.1f} units a week**, against
-  {ov['median_weekly_demand']:.1f} for overstocked items — high demand, not low receipts, empties the shelf.""" if ro is not None else ""))
-    st.dataframe(stat.round(1), width="stretch")
+        .properties(height=260, title="Receipts vs sales by category"), width="stretch")
+    c[1].altair_chart(alt.Chart(stat).mark_bar().encode(
+        x=alt.X("status:N", sort=["Reorder now", "OK", "Overstock", "No recent demand"], title=None),
+        y=alt.Y("weekly_demand:Q", title="Median weekly demand (units)"),
+        color=alt.Color("status:N", scale=alt.Scale(domain=["Reorder now", "OK", "Overstock", "No recent demand"], range=[c3, c1, c2, grey]), legend=None),
+        tooltip=["status", "items", alt.Tooltip("weekly_demand:Q", format=".1f"), alt.Tooltip("days_cover:Q", format=",.0f")])
+        .properties(height=260, title="Stock-outs hit fast movers"), width="stretch")
 
-    st.markdown("#### F. What acting on the drivers would be worth (estimate)")
-    st.markdown("**Quality levers**")
+    # ---- F. value of acting
+    st.markdown("**F. Value of acting (estimates)**")
     years = df["year"].nunique()
     crit = df[df["maintenance_status"] == "Critical"]
     old = df[df["equipment_age_years"] > 10]
     young_rate = df.loc[df["equipment_age_years"] <= 10, target].mean()
     novice = df[df["operator_experience_years"] <= 2]
     exp_rate = df.loc[df["operator_experience_years"] > 2, target].mean()
-    lever = pd.DataFrame([
-        ["Never run a batch on Critical equipment", f"{len(crit):,}", f"{crit[target].mean():.1%} → {rate['Current']:.1%}",
-         len(crit) * (crit[target].mean() - rate["Current"])],
-        ["Bring machines over 10 years to the younger fleet's failure rate", f"{len(old):,}", f"{old[target].mean():.1%} → {young_rate:.1%}",
-         len(old) * (old[target].mean() - young_rate)],
-        ["Pair operators with 0–2 years' experience with seniors", f"{len(novice):,}", f"{novice[target].mean():.1%} → {exp_rate:.1%}",
-         len(novice) * (novice[target].mean() - exp_rate)],
-    ], columns=["Action", "Batches affected (all years)", "Failure rate now → after", "Failed batches avoided (all years)"])
-    lever["Per year (average)"] = lever["Failed batches avoided (all years)"] / years
-    c = st.columns([2, 3])
-    c[0].altair_chart(alt.Chart(lever).mark_bar(color=c1).encode(
-        y=alt.Y("Action:N", sort="-x", title=None), x=alt.X("Per year (average):Q", title="Failed batches avoided per year"),
-        tooltip=["Action", alt.Tooltip("Per year (average):Q", format=".1f")]).properties(height=200), width="stretch")
-    c[1].dataframe(lever.round(1), hide_index=True, width="stretch")
-    st.caption("Estimates assume the affected batches would fail at the better group's rate; the actions overlap, so the savings should "
-               "not be added together.")
-    st.markdown("**Commercial levers (estimate, last 12 months)**")
+    lever = pd.DataFrame({"action": ["Renew / overhaul 10+ yr equipment", "Mentor 0–2 yr operators", "No runs on Critical equipment"],
+                          "per_year": [len(old) * (old[target].mean() - young_rate) / years,
+                                       len(novice) * (novice[target].mean() - exp_rate) / years,
+                                       len(crit) * (crit[target].mean() - rate["Current"]) / years]})
     last12 = d[d["month"] > d["month"].max() - pd.DateOffset(months=12)]
-    cap = last12[last12["discount_pct"] > 5]                                # orders discounted above 5%
-    disc_gain = (cap["gross_amount_kes"] * (cap["discount_pct"] - 5) / 100).sum()  # profit kept if discounts were capped at 5%
+    cap = last12[last12["discount_pct"] > 5]
+    disc_gain = (cap["gross_amount_kes"] * (cap["discount_pct"] - 5) / 100).sum()  # profit kept if discounts capped at 5%
     last_cost = m.groupby("product_id")["unit_cost_kes"].last()
     excess_units = (pol["stock_now"] - 180 * pol["avg_weekly"] / 7).clip(lower=0)
     excess_value = (excess_units * pol["product_id"].map(last_cost)).sum()  # stock value beyond 180 days of cover
     old_debt = d.loc[(d["balance_due_kes"] > 0) & (d["age_days"] > 365), "balance_due_kes"].sum()
-    st.dataframe(pd.DataFrame([
-        ["Cap discounts at 5% (same volumes)", f"{len(cap):,} orders", f"KES {disc_gain / 1e6:,.1f} m more gross profit a year"],
-        ["Run stock down to 180 days of cover", f"{(excess_units > 0).sum():,} items", f"KES {excess_value / 1e9:,.1f} bn of cash released over time"],
-        ["Collect credit balances older than one year", "credit accounts", f"KES {old_debt / 1e6:,.0f} m of cash"],
-    ], columns=["Action", "Affects", "Value"]), hide_index=True, width="stretch")
-    st.caption("Discount estimate assumes volumes stay the same; stock release assumes surplus stock can be sold or returned at cost.")
+    c = st.columns([2, 1, 1, 1])
+    c[0].altair_chart(alt.Chart(lever).mark_bar(color=c1).encode(
+        y=alt.Y("action:N", sort="-x", title=None), x=alt.X("per_year:Q", title="Failed batches avoided per year"),
+        tooltip=["action", alt.Tooltip("per_year:Q", format=".1f")]).properties(height=200, title="Quality levers"), width="stretch")
+    kpi(c[1], "", "Cap discounts at 5%", f"KES {disc_gain / 1e6:,.1f} m", "gross profit a year", tn[1])
+    kpi(c[2], "", "Stock to 180 days", f"KES {excess_value / 1e9:,.1f} bn", "cash released", tn[4])
+    kpi(c[3], "", "Collect 1 yr+ debt", f"KES {old_debt / 1e6:,.0f} m", "cash", tn[3])
+    st.caption("Estimates; quality levers overlap and are not additive.")
 
 
 
@@ -767,34 +734,31 @@ LOWER_IS_BETTER = {"MAE", "WAPE (%)"}                                       # me
 GAINS = {'1. Will a batch fail QC?': 50.0, '2. What yield will a batch achieve?': 22.1, '3. What maintenance state is the equipment in?': 76.2, '4. Are monthly quality indicators deteriorating?': 20.6, '5. Which batches ran under abnormal conditions?': 9.9, '7. What will weekly demand be?': 19.7, '8. Which items will run out within 14 days?': 20479.7}  # % better than baseline, from unrounded notebook scores
 
 # ------------------------------------------------------------------ header and navigation
-st.markdown('''<div class="banner"><h1>🧬 Pharmaceutical Operations Intelligence System</h1>
+st.markdown('''<div class="banner"><h1>Pharmaceutical Operations Intelligence System</h1>
 <p>Individual capstone (POI99999) · production · maintenance · sales · inventory — LAL data, 2007–2026</p></div>''',
             unsafe_allow_html=True)                                         # page banner
 NAMES = ["Overview", "Data cleaning", "Sales", "Batch quality", "Failure causes", "Equipment", "Models",
          "What-if predictor", "Demand forecast", "Inventory", "Commercial & finance", "Executive summary"]
 T = dict(zip(NAMES, st.tabs(NAMES)))                                    # tabs addressed by name  # same order as the team dashboard
-st.sidebar.caption("Model results are the test-set results recorded in POI99999.ipynb. All other figures are computed live from the CSV files.")
+st.sidebar.caption("Model scores: POI99999 test sets · other figures: live from the CSVs.")
 
 # ------------------------------------------------------------------ overview
 with T["Overview"]:                                                   # Overview
     fr = data["failed"].mean()                                              # failure rate
     pol = reorder_policy(moves)                                             # stock status
     c = st.columns(5)
-    kpi(c[0], "🧪", "Batches", f"{len(data):,}", f"{1 - fr:.1%} passed QC", "teal", bar=(1 - fr) * 100)
-    kpi(c[1], "⚠️", "Failed batches", f"{data['failed'].sum():,}", f"{fr:.2%} failure rate", "coral")
-    kpi(c[2], "💰", "Net sales", f"KES {valid['net_amount_excl_vat_kes'].sum() / 1e9:.1f} bn", f"{len(valid):,} delivered orders", "green")
-    kpi(c[3], "🧾", "Unpaid balances", f"KES {sales['balance_due_kes'].sum() / 1e6:,.0f} m", "all on credit accounts", "violet")
-    kpi(c[4], "📦", "Overstocked items", f"{(pol['status'] == 'Overstock').sum():,}", f"of {len(pol):,} branch-product items", "gold",
+    kpi(c[0], "", "Batches", f"{len(data):,}", f"{1 - fr:.1%} passed QC", "teal", bar=(1 - fr) * 100)
+    kpi(c[1], "", "Failed batches", f"{data['failed'].sum():,}", f"{fr:.2%} failure rate", "coral")
+    kpi(c[2], "", "Net sales", f"KES {valid['net_amount_excl_vat_kes'].sum() / 1e9:.1f} bn", f"{len(valid):,} delivered orders", "green")
+    kpi(c[3], "", "Unpaid balances", f"KES {sales['balance_due_kes'].sum() / 1e6:,.0f} m", "all on credit accounts", "violet")
+    kpi(c[4], "", "Overstocked items", f"{(pol['status'] == 'Overstock').sum():,}", f"of {len(pol):,} branch-product items", "gold",
         bar=(pol["status"] == "Overstock").mean() * 100)
     left, right = st.columns([3, 2])
-    left.subheader("Bottom line")
-    left.markdown("""
-- **Quality is high:** 96.9% of 60,000 batches pass; assay, dissolution and weight variation make up **70%** of failures.
-- **Overdue maintenance doubles the risk:** Critical equipment fails at **6.9%** vs 3.1% for Current.
-- **Failure prediction is weak** (best PR-AUC 0.047): keep laboratory release testing.
-- **Yield and maintenance state can be predicted** (Random Forest: yield 22% better than average; macro F1 0.557).
-- **Stock is bought without regard to sales:** 4.1m units received vs 2.1m sold; 1,033 of 1,200 items overstocked.
-- **Stock-outs can be flagged early:** Gradient Boosting catches 80% of stock-outs two weeks ahead.""")
+    left.subheader("Key findings")
+    left.dataframe(pd.DataFrame([["Batches passing QC", "96.9%"], ["Top 3 causes' share of failures", "70%"],
+                                 ["Failure rate: Critical vs Current", "6.9% vs 3.1%"], ["Failure model PR-AUC", "0.047 (weak)"],
+                                 ["Yield model vs average", "22% better"], ["Overstocked items", "1,033 of 1,200"],
+                                 ["Stock-outs caught", "80%"]], columns=["Finding", "Value"]), hide_index=True, width="stretch")
     yr = data.groupby("year").agg(batches=("batch_id", "size"), failure_rate=("failed", "mean")).reset_index()
     yr["failure_rate"] *= 100
     right.subheader("Production and failure rate by year")
@@ -806,16 +770,16 @@ with T["Overview"]:                                                   # Overview
 # ------------------------------------------------------------------ data cleaning
 with T["Data cleaning"]:                                                   # Data cleaning
     c = st.columns(4)
-    kpi(c[0], "🏭", "Production + maintenance", "60,000", "batches joined, 0 duplicates", "teal")
-    kpi(c[1], "🛒", "Sales", f"{len(sales):,}", f"{sales['is_cancelled'].sum():,} cancelled (4.0%)", "navy")
-    kpi(c[2], "🔄", "Stock movements", f"{len(moves) + sales['is_cancelled'].sum():,}", "12,000 receipts + 150,000 sale-outs", "violet")
-    kpi(c[3], "✅", "Missing cells after cleaning", "0", "means for numbers, mode for text", "green")
+    kpi(c[0], "", "Production + maintenance", "60,000", "batches joined, 0 duplicates", "teal")
+    kpi(c[1], "", "Sales", f"{len(sales):,}", f"{sales['is_cancelled'].sum():,} cancelled (4.0%)", "navy")
+    kpi(c[2], "", "Stock movements", f"{len(moves) + sales['is_cancelled'].sum():,}", "12,000 receipts + 150,000 sale-outs", "violet")
+    kpi(c[3], "", "Missing cells after cleaning", "0", "means for numbers, mode for text", "green")
     st.subheader("Missing values before cleaning (production file)")
     m = missing[missing > 0].drop(labels=["rejection_reason"], errors="ignore").sort_values().reset_index()
     m.columns = ["column", "missing"]
     st.altair_chart(alt.Chart(m).mark_bar(color=TEAL).encode(y=alt.Y("column:N", sort="-x", title=None), x="missing:Q",
                                                              tooltip=["column", "missing"]).properties(height=280), width="stretch")
-    st.caption("rejection_reason is empty for the 58,125 passed batches (expected) and is left out of the chart.")
+    st.caption("rejection_reason excluded (empty for passed batches).")
     st.subheader("Cleaning log")
     st.dataframe(pd.DataFrame([
         ["Cancelled orders separated from demand and revenue", f"{sales['is_cancelled'].sum():,}", "Void sales: nothing paid, nothing owed"],
@@ -833,17 +797,17 @@ with T["Data cleaning"]:                                                   # Dat
     neg = (moves["stock_on_hand"] < 0).groupby(moves["movement_date"].dt.year).mean().mul(100).rename("% of movements")
     st.subheader("Movements leaving stock below zero, by year")
     st.line_chart(neg, color=CORAL)
-    st.caption(f"Overall {(moves['stock_on_hand'] < 0).mean():.1%}: goods recorded as sold before enough stock was received.")
+    st.caption(f"Overall: {(moves['stock_on_hand'] < 0).mean():.1%}")
 
 # ------------------------------------------------------------------ EDA production
 with T["Batch quality"]:                                                   # Batch quality
     yrs = st.sidebar.slider("Production years (Batch quality tab)", 2007, 2026, (2007, 2026))  # year filter
     d = data[data["year"].between(*yrs)]                                    # filtered batches
     c = st.columns(4)
-    kpi(c[0], "🧪", "Batches", f"{len(d):,}", f"{yrs[0]}–{yrs[1]}", "teal")
-    kpi(c[1], "📉", "Failure rate", f"{d['failed'].mean():.2%}", f"{d['failed'].sum():,} failed", "coral")
-    kpi(c[2], "🎯", "Average yield", f"{d['actual_yield'].mean():.2f}%", "actual yield", "navy")
-    kpi(c[3], "🔬", "Average purity", f"{d['assay_result_purity'].mean():.2f}%", "assay result", "violet")
+    kpi(c[0], "", "Batches", f"{len(d):,}", f"{yrs[0]}–{yrs[1]}", "teal")
+    kpi(c[1], "", "Failure rate", f"{d['failed'].mean():.2%}", f"{d['failed'].sum():,} failed", "coral")
+    kpi(c[2], "", "Average yield", f"{d['actual_yield'].mean():.2f}%", "actual yield", "navy")
+    kpi(c[3], "", "Average purity", f"{d['assay_result_purity'].mean():.2f}%", "assay result", "violet")
     factor = st.selectbox("Failure rate by", ["maintenance_status", "manufacturing_section", "dosage_form", "equipment_id", "drug_name"])
     t = d.groupby(factor)["failed"].agg(rate="mean", batches="size").reset_index()
     t["rate"] *= 100
@@ -877,11 +841,11 @@ with T["Batch quality"]:                                                   # Bat
 # ------------------------------------------------------------------ EDA sales and inventory
 with T["Sales"]:                                                   # Sales
     c = st.columns(4)
-    kpi(c[0], "💰", "Net sales", f"KES {valid['net_amount_excl_vat_kes'].sum() / 1e9:.1f} bn", "2014–2025", "green")
-    kpi(c[1], "🧾", "Orders delivered", f"{len(valid):,}", f"{sales['is_cancelled'].mean():.1%} cancelled", "navy")
+    kpi(c[0], "", "Net sales", f"KES {valid['net_amount_excl_vat_kes'].sum() / 1e9:.1f} bn", "2014–2025", "green")
+    kpi(c[1], "", "Orders delivered", f"{len(valid):,}", f"{sales['is_cancelled'].mean():.1%} cancelled", "navy")
     rec_u, sold_u = moves.loc[moves["quantity_change"] > 0, "quantity_change"].sum(), valid["quantity"].sum()
-    kpi(c[2], "📥", "Units received", f"{rec_u / 1e6:.2f} m", f"{rec_u / sold_u:.1f}× units sold", "gold")
-    kpi(c[3], "🏬", "Branch BR01", f"{(valid['branch_code'] == 'BR01').mean():.0%}", "of delivered orders", "violet",
+    kpi(c[2], "", "Units received", f"{rec_u / 1e6:.2f} m", f"{rec_u / sold_u:.1f}× units sold", "gold")
+    kpi(c[3], "", "Branch BR01", f"{(valid['branch_code'] == 'BR01').mean():.0%}", "of delivered orders", "violet",
         bar=(valid["branch_code"] == "BR01").mean() * 100)
     st.subheader("Net sales per month (KES million)")
     st.area_chart(valid.groupby(valid["sale_date"].dt.to_period("M").dt.to_timestamp())["net_amount_excl_vat_kes"].sum().div(1e6)
@@ -919,13 +883,13 @@ with T["Models"]:                                                   # Models
     best_score = t.set_index("Model").loc[r["best"], metric]
     base = t[t["Model"].str.startswith("Baseline")]                         # baseline row, if any
     c = st.columns(3)
-    kpi(c[0], "🏆", "Chosen model", r["best"], f"decided on {metric}", "teal")
-    kpi(c[1], "📏", metric, f"{best_score:,.3f}", "test-set score", "navy")
+    kpi(c[0], "", "Chosen model", r["best"], f"decided on {metric}", "teal")
+    kpi(c[1], "", metric, f"{best_score:,.3f}", "test-set score", "navy")
     if len(base):
         b = base[metric].iloc[0]                                            # baseline score
-        kpi(c[2], "📈", "Gain over baseline", f"{GAINS[prob]:,.1f}%", f"baseline {b:,.3f}", "green")
+        kpi(c[2], "", "Gain over baseline", f"{GAINS[prob]:,.1f}%", f"baseline {b:,.3f}", "green")
     else:
-        kpi(c[2], "🧩", "Models compared", f"{len(t)}", "no baseline for clustering", "violet")
+        kpi(c[2], "", "Models compared", f"{len(t)}", "no baseline for clustering", "violet")
     note(f"<b>Why {r['best']}:</b> {r['why']}")
     st.altair_chart(alt.Chart(t).mark_bar().encode(
         y=alt.Y("Model:N", sort="-x" if metric not in LOWER_IS_BETTER else "x", title=None), x=alt.X(f"{metric}:Q"),
@@ -942,9 +906,9 @@ with T["Failure causes"]:                                                   # Fa
     themes["Share (%)"] = (themes["Failed batches"] / themes["Failed batches"].sum() * 100).round(1)
     themes["Cumulative (%)"] = themes["Share (%)"].cumsum().round(1)
     c = st.columns(3)
-    kpi(c[0], "🔬", "Largest cause", "Assay", "37% of failures", "coral", bar=37.3)
-    kpi(c[1], "📊", "Top 3 causes", "70%", "assay, dissolution, weight", "gold", bar=70.2)
-    kpi(c[2], "🏭", "Oral Solids", f"{(f['manufacturing_section'] == 'Oral Solids').mean():.0%}", "of failed batches", "navy",
+    kpi(c[0], "", "Largest cause", "Assay", "37% of failures", "coral", bar=37.3)
+    kpi(c[1], "", "Top 3 causes", "70%", "assay, dissolution, weight", "gold", bar=70.2)
+    kpi(c[2], "", "Oral Solids", f"{(f['manufacturing_section'] == 'Oral Solids').mean():.0%}", "of failed batches", "navy",
         bar=(f["manufacturing_section"] == "Oral Solids").mean() * 100)
     base = alt.Chart(themes).encode(x=alt.X("Cause (TF-IDF + K-Means theme):N", sort=None, title=None))
     st.altair_chart(alt.layer(base.mark_bar(color=CORAL).encode(y=alt.Y("Failed batches:Q")),
@@ -963,8 +927,8 @@ with T["Inventory"]:                                                   # Invento
     over = c[2].slider("Overstock limit (days of cover)", 60, 365, 180)
     pol = reorder_policy(moves, lead, z, over)                              # recomputed with the chosen assumptions
     k = st.columns(4)
-    for col, (s, icon, tone) in zip(k, [("Reorder now", "🛒", "coral"), ("Overstock", "📦", "gold"),
-                                        ("No recent demand", "💤", "violet"), ("OK", "✅", "green")]):
+    for col, (s, icon, tone) in zip(k, [("Reorder now", "", "coral"), ("Overstock", "", "gold"),
+                                        ("No recent demand", "", "violet"), ("OK", "", "green")]):
         n = (pol["status"] == s).sum()
         kpi(col, icon, s, f"{n:,}", f"{n / len(pol):.0%} of {len(pol):,} items", tone, bar=n / len(pol) * 100)
     st.metric("Stock value beyond the overstock limit", f"KES {pol['excess_value_kes'].sum() / 1e9:,.1f} bn")
@@ -986,9 +950,9 @@ with T["Inventory"]:                                                   # Invento
 with T["Equipment"]:                                                   # Equipment
     rate = data.groupby("maintenance_status")["failed"].mean().mul(100)
     c = st.columns(3)
-    kpi(c[0], "🔴", "Critical", f"{rate.get('Critical', 0):.1f}%", f"failure rate · {(data['maintenance_status'] == 'Critical').sum()} batches", "coral")
-    kpi(c[1], "🟡", "Due Soon", f"{rate.get('Due Soon', 0):.1f}%", "failure rate", "gold")
-    kpi(c[2], "🟢", "Current", f"{rate.get('Current', 0):.1f}%", "failure rate", "green")
+    kpi(c[0], "", "Critical", f"{rate.get('Critical', 0):.1f}%", f"failure rate · {(data['maintenance_status'] == 'Critical').sum()} batches", "coral")
+    kpi(c[1], "", "Due Soon", f"{rate.get('Due Soon', 0):.1f}%", "failure rate", "gold")
+    kpi(c[2], "", "Current", f"{rate.get('Current', 0):.1f}%", "failure rate", "green")
     eq = data.groupby("equipment_id").agg(batches=("batch_id", "size"), failure_rate=("failed", "mean"),
                                           age_years=("equipment_age_years", "max"), critical_batches=("maintenance_status", lambda s: (s == "Critical").sum()),
                                           max_days_since_service=("maintenance_days_ago", "max")).reset_index()
@@ -999,7 +963,7 @@ with T["Equipment"]:                                                   # Equipme
         tooltip=list(eq.columns)).properties(height=340, title="Machines: age vs failure rate (size = batches)"), width="stretch")
     st.subheader("Machines ranked by Critical batches and days since service")
     st.dataframe(eq.sort_values(["critical_batches", "max_days_since_service"], ascending=False).round(1), hide_index=True, width="stretch")
-    st.caption("A screening list, not a failure probability: service the top machines before they reach Critical status.")
+    st.caption("Screening list, not a probability.")
 
 # ------------------------------------------------------------------ executive summary
 # ------------------------------------------------------------------ forecasting
@@ -1013,10 +977,10 @@ with T["Demand forecast"]:                                                   # D
     future = hw_forecast(y, 12)                                             # next 12 months
     growth = future.sum() / y.iloc[-12:].sum() - 1
     c = st.columns(4)
-    kpi(c[0], "🔮", "Next 12 months", f"{future.sum():,.0f}", "units forecast", "teal")
-    kpi(c[1], "🗓️", "Last 12 months", f"{y.iloc[-12:].sum():,.0f}", "units sold", "navy")
-    kpi(c[2], "📈" if growth >= 0 else "📉", "Expected change", f"{growth:+.1%}", "next year vs last year", "green" if growth >= 0 else "coral")
-    kpi(c[3], "🎯", "Forecast error", f"{acc.loc['Holt-Winters', 'WAPE (%)']:.1f}%",
+    kpi(c[0], "", "Next 12 months", f"{future.sum():,.0f}", "units forecast", "teal")
+    kpi(c[1], "", "Last 12 months", f"{y.iloc[-12:].sum():,.0f}", "units sold", "navy")
+    kpi(c[2], "" if growth >= 0 else "", "Expected change", f"{growth:+.1%}", "next year vs last year", "green" if growth >= 0 else "coral")
+    kpi(c[3], "", "Forecast error", f"{acc.loc['Holt-Winters', 'WAPE (%)']:.1f}%",
         f"WAPE vs {acc.loc['Seasonal naive', 'WAPE (%)']:.1f}% seasonal naive", "violet")
     st.line_chart(pd.DataFrame({"Actual": y, "Forecast (Holt-Winters)": future}), color=[NAVY, TEAL])
     c = st.columns(2)
@@ -1046,121 +1010,86 @@ with T["Commercial & finance"]:                                                 
 with T["Executive summary"]:                                                  # Executive summary
     rate = data.groupby("maintenance_status")["failed"].mean().mul(100)    # failure rate per equipment status
     pol = reorder_policy(moves)                                             # stock status
-    st.markdown('''<div style="background:#e8f6f5;border-left:6px solid #0e7c7b;padding:14px 18px;border-radius:10px;margin-bottom:14px">
-    <b>Bottom line.</b> Of nine business questions, the models answer six usefully: yield, maintenance state, monthly quality trend,
-    weekly demand, stock-outs and product groups. Batch failure and abnormal process conditions cannot be predicted reliably from
-    pre-release data, so laboratory testing stays. The biggest gains are in maintenance timing, corrective action on three failure
-    causes (70% of failures) and buying stock to demand.</div>''', unsafe_allow_html=True)  # headline message
     c = st.columns(5)
-    kpi(c[0], "🧪", "Batches passed", f"{1 - data['failed'].mean():.1%}", f"{len(data):,} batches · {data['failed'].sum():,} failed", "teal",
+    kpi(c[0], "", "Batches passed", f"{1 - data['failed'].mean():.1%}", f"{len(data):,} batches · {data['failed'].sum():,} failed", "teal",
         bar=(1 - data["failed"].mean()) * 100)
-    kpi(c[1], "🔧", "Critical vs Current", f"{rate['Critical']:.1f}% vs {rate['Current']:.1f}%", "failure rate", "coral")
-    kpi(c[2], "🔬", "Top 3 failure causes", "70%", "assay, dissolution, weight variation", "gold", bar=70)
-    kpi(c[3], "💰", "Net sales 2014–2025", f"KES {valid['net_amount_excl_vat_kes'].sum() / 1e9:.1f} bn", f"KES {sales['balance_due_kes'].sum() / 1e6:,.0f} m unpaid", "green")
-    kpi(c[4], "📦", "Reorder / overstock", f"{(pol['status'] == 'Reorder now').sum()} / {(pol['status'] == 'Overstock').sum()}",
+    kpi(c[1], "", "Critical vs Current", f"{rate['Critical']:.1f}% vs {rate['Current']:.1f}%", "failure rate", "coral")
+    kpi(c[2], "", "Top 3 failure causes", "70%", "assay, dissolution, weight", "gold", bar=70)
+    kpi(c[3], "", "Questions answered", "6 of 9", "useful model found", "green", bar=6 / 9 * 100)
+    kpi(c[4], "", "Reorder / overstock", f"{(pol['status'] == 'Reorder now').sum()} / {(pol['status'] == 'Overstock').sum()}",
         f"of {len(pol):,} items", "violet", bar=(pol["status"] == "Overstock").mean() * 100)
-
     exec_commercial(sales, moves, ["green", "teal", "gold", "violet"])     # revenue, forecast, receivables, stock value
-    st.subheader("1. What we asked and what the models found")
+
+    st.subheader("Questions and answers")
     st.dataframe(pd.DataFrame([
-        ["1. Will a batch fail QC?", "Baseline, Logistic Regression, Random Forest, ANN", "Logistic Regression",
-         "PR-AUC 0.047 vs 0.031 random; catches 193 of 375 failures (recall 51.5%) but only 4% of alerts are real", "Weakly — keep lab testing"],
-        ["2. What yield will a batch achieve?", "Baseline, Random Forest, ANN", "Random Forest",
-         "MAE 0.858 yield points vs 1.102 (22% better); R² 0.33", "Yes — useful for planning output"],
-        ["3. What maintenance state is the equipment in?", "Baseline, Logistic Regression, Random Forest, ANN", "Random Forest",
-         "Macro F1 0.557 vs 0.316; finds 60 of 87 Critical records (69%)", "Yes — flags most overdue equipment"],
-        ["4. Are monthly quality indicators deteriorating?", "Seasonal-naive, Moving average, Linear Regression, GRU", "Linear Regression",
-         "Average WAPE 7.0% (20.6% better); failure-rate WAPE 26% is the hardest", "Yes — trend tracked within 7%"],
-        ["5. Which batches ran under abnormal conditions?", "Random score, Z-score, PCA, KNN distance", "Z-score rule",
-         "PR-AUC 0.036 vs 0.033; top 5% hold 7.2% of failures (lift 1.4)", "Weak link to failure — use for process review"],
-        ["6. What are the main failure causes?", "TF-IDF + K-Means, k = 2 to 6", "K-Means (k = 6)",
-         "Silhouette 0.788; assay 37%, dissolution 18%, weight variation 15% = 70%", "Yes — three causes to fix first"],
-        ["7. What will weekly demand be?", "Seasonal-naive, Moving average, Croston-SBA, Linear Regression", "Croston-SBA",
-         "WAPE 115% (19.7% better), bias −5.9%; company total WAPE 12.4%", "Yes for totals; single product-weeks stay noisy"],
-        ["8. Which items will run out within 14 days?", "Baseline, Logistic Regression, Random Forest, Gradient Boosting", "Gradient Boosting",
-         "PR-AUC 0.278 (about 206× random); recall 0.80 at threshold 0.690 with 1,186 alerts for 156 stock-outs", "Yes — a usable watch-list"],
-        ["9. Which product groups need different stock policies?", "K-Means, k = 2 to 6", "K-Means (k = 2)",
-         "Silhouette 0.471; 250 fast, cheap items (76% of value) vs 50 slow, expensive items (mostly Equipment)", "Yes — two stock rules"],
-    ], columns=["Question", "Models compared", "Chosen", "Key values", "Answer"]), hide_index=True, width="stretch")
+        ["1. Batch fails QC?", "Logistic regression", "PR-AUC 0.047 vs 0.031 · recall 51.5%", "Weak"],
+        ["2. Batch yield?", "Random forest", "MAE 0.858 vs 1.102 · R² 0.33", "Yes"],
+        ["3. Maintenance state?", "Random forest", "Macro F1 0.557 · 69% of Critical found", "Yes"],
+        ["4. Quality trend?", "Linear regression", "WAPE 7.0% · 20.6% gain", "Yes"],
+        ["5. Abnormal conditions?", "Z-score rule", "PR-AUC 0.036 · lift 1.4", "Weak"],
+        ["6. Failure causes?", "TF-IDF + K-Means (k=6)", "Silhouette 0.788 · top 3 = 70%", "Yes"],
+        ["7. Weekly demand?", "Croston-SBA", "WAPE 115% · 19.7% gain · bias −5.9%", "Yes (totals)"],
+        ["8. Stock-outs in 14 days?", "Gradient boosting", "PR-AUC 0.278 · recall 0.80", "Yes"],
+        ["9. Product groups?", "K-Means (k=2)", "Silhouette 0.471 · 250 fast / 50 slow", "Yes"],
+    ], columns=["Question", "Model", "Key value", "Answer"]), hide_index=True, width="stretch")
 
     exec_drivers(data, "failed", "poi", (TEAL, GOLD, CORAL, GREY), ["teal", "green", "coral", "violet", "navy", "gold"],
                  sales, moves, reorder_policy(moves))
 
-    st.subheader("Model scorecard")
+    st.subheader("Model results")
     rows = []
     for name, r in RESULTS.items():                                         # one row per problem
         t = r["table"].set_index("Model")[r["metric"]]
         b = [m for m in t.index if m.startswith("Baseline")]
         rows.append([name, r["best"], r["metric"], t[r["best"]], t[b[0]] if b else None, GAINS.get(name)])
     score = pd.DataFrame(rows, columns=["Problem", "Chosen model", "Metric", "Score", "Baseline", "Gain over baseline (%)"])
-    st.dataframe(score.round(3), hide_index=True, width="stretch")
-
-    st.subheader("2. The evidence in pictures")
     c = st.columns(2)
     g = score.dropna(subset=["Gain over baseline (%)"])
-    g = g[g["Gain over baseline (%)"] < 1000]                               # stock-out gain (20,480%) shown in the caption instead
-    g = g.assign(level=np.where(g["Gain over baseline (%)"] >= 15, "15%+ better", "under 15%"))  # colour group
+    g = g[g["Gain over baseline (%)"] < 1000]                               # stock-out gain (about 206x) left out of the chart
+    g = g.assign(level=np.where(g["Gain over baseline (%)"] >= 15, "15%+ better", "under 15%"))
     c[0].altair_chart(alt.Chart(g).mark_bar().encode(
         y=alt.Y("Problem:N", sort="-x", title=None), x=alt.X("Gain over baseline (%):Q"),
-        color=alt.Color("level:N", scale=alt.Scale(domain=["15%+ better", "under 15%"], range=[TEAL, GOLD]), title=None),
-        tooltip=["Problem", "Chosen model", "Gain over baseline (%)"]).properties(height=280, title="Chosen model vs baseline (teal = 15%+ better)"),
+        color=alt.Color("level:N", scale=alt.Scale(domain=["15%+ better", "under 15%"], range=[TEAL, GOLD]), legend=alt.Legend(orient="bottom", title=None)),
+        tooltip=["Problem", "Chosen model", "Gain over baseline (%)"]).properties(height=280, title="Chosen model vs baseline (stock-out: 206×)"),
         width="stretch")
-    c[0].caption("Stock-out model not shown: PR-AUC 0.278 vs 0.001 is about 206× random and would flatten the other bars.")
+    c[1].dataframe(score[["Problem", "Chosen model", "Metric", "Score"]].round(3), hide_index=True, width="stretch", height=280)
+    c = st.columns(3)
     themes = pd.DataFrame({"cause": ["Assay", "Dissolution", "Weight variation", "Microbial limit", "Related substances", "Blend uniformity"],
                            "share": [37.3, 18.2, 14.8, 11.6, 9.5, 8.7]})
     themes["cumulative"] = themes["share"].cumsum()
     base = alt.Chart(themes).encode(x=alt.X("cause:N", sort=None, title=None))
-    c[1].altair_chart(alt.layer(base.mark_bar(color=CORAL).encode(y=alt.Y("share:Q", title="Share of failures (%)")),
+    c[0].altair_chart(alt.layer(base.mark_bar(color=CORAL).encode(y=alt.Y("share:Q", title="Share of failures (%)")),
                                 base.mark_line(color=NAVY, point=True).encode(y=alt.Y("cumulative:Q", title="Cumulative %", scale=alt.Scale(domain=[0, 100]))))
-                      .resolve_scale(y="independent").properties(height=280, title="Failure causes (NLP): top 3 = 70%"), width="stretch")
-    c = st.columns(2)
-    r = rate.reindex(["Current", "Due Soon", "Critical"]).reset_index(name="rate")
-    c[0].altair_chart(alt.Chart(r).mark_bar().encode(
-        x=alt.X("maintenance_status:N", sort=None, title=None), y=alt.Y("rate:Q", title="Failure rate (%)"),
-        color=alt.Color("maintenance_status:N", scale=alt.Scale(domain=["Current", "Due Soon", "Critical"], range=[TEAL, GOLD, CORAL]), legend=None),
-        tooltip=["maintenance_status", alt.Tooltip("rate:Q", format=".2f")]).properties(height=260, title="Failure rate by maintenance status"), width="stretch")
+                      .resolve_scale(y="independent").properties(height=260, title="Failure causes: top 3 = 70%"), width="stretch")
     dm = pd.DataFrame({"Model": ["Seasonal-naive", "Moving average", "Croston-SBA", "Linear Regression"] * 2,
                        "Level": ["Product-week"] * 4 + ["Company total"] * 4,
                        "WAPE (%)": [143.2, 120.2, 115.0, 104.4, 16.5, 11.3, 12.4, 29.1]})
     c[1].altair_chart(alt.Chart(dm).mark_bar().encode(
         x=alt.X("Model:N", sort=None, title=None), y=alt.Y("WAPE (%):Q"), xOffset="Level:N",
-        color=alt.Color("Level:N", scale=alt.Scale(range=[NAVY, TEAL])), tooltip=["Model", "Level", "WAPE (%)"])
-        .properties(height=260, title="Weekly demand error: product vs company level"), width="stretch")
-    c = st.columns(2)
-    so = pd.DataFrame({"Model": ["Gradient Boosting", "Logistic Regression", "Random Forest"] * 2,
-                       "Measure": ["PR-AUC"] * 3 + ["Precision"] * 3, "value": [0.278, 0.265, 0.243, 0.095, 0.048, 0.122]})
-    c[0].altair_chart(alt.Chart(so).mark_bar().encode(
-        x=alt.X("Model:N", title=None), y=alt.Y("value:Q", title=None), xOffset="Measure:N",
-        color=alt.Color("Measure:N", scale=alt.Scale(range=[TEAL, GOLD])), tooltip=["Model", "Measure", "value"])
-        .properties(height=260, title="Stock-out models (random PR-AUC = 0.001)"), width="stretch")
-    c[1].altair_chart(alt.Chart(pol["status"].value_counts().reset_index(name="items")).mark_arc(innerRadius=60).encode(
+        color=alt.Color("Level:N", scale=alt.Scale(range=[NAVY, TEAL]), legend=alt.Legend(orient="bottom", title=None)),
+        tooltip=["Model", "Level", "WAPE (%)"]).properties(height=260, title="Weekly demand error"), width="stretch")
+    c[2].altair_chart(alt.Chart(pol["status"].value_counts().reset_index(name="items")).mark_arc(innerRadius=55).encode(
         theta="items:Q", color=alt.Color("status:N", scale=alt.Scale(domain=["Overstock", "Reorder now", "No recent demand", "OK"],
-                                                                     range=[GOLD, CORAL, GREY, TEAL])),
-        tooltip=["status", "items"]).properties(height=260, title=f"Stock status · KES {pol['excess_value_kes'].sum() / 1e9:,.1f} bn beyond 180 days"),
+                                                                     range=[GOLD, CORAL, GREY, TEAL]), legend=alt.Legend(orient="bottom", title=None)),
+        tooltip=["status", "items"]).properties(height=260, title=f"Stock status · KES {pol['excess_value_kes'].sum() / 1e9:,.1f} bn excess"),
         width="stretch")
 
-    st.subheader("3. How we handled what we found")
-    st.dataframe(pd.DataFrame([
-        ["Only 3.1% of batches fail; Critical is under 1% of records", "PR-AUC, recall and macro F1 used to choose models, not accuracy; a baseline kept in every comparison"],
-        ["Batch-failure prediction is weak (PR-AUC 0.047)", "Not used to release batches; only to rank batches for extra in-process checks"],
-        ["Forecasts can look good while biased", "Weekly demand: models with bias beyond ±10% rejected, so Croston-SBA chosen over Linear Regression (−28%)"],
-        ["Time series must not see the future", "Monthly trend tested on the last 36 months; weekly demand from 23 Oct 2023; stock-outs on the last 20% of weeks"],
-        ["Stock-outs are rare (0.14% of weeks)", "Alert threshold set from the precision-recall curve for recall ≥ 0.80 (0.690)"],
-        ["Free-text rejection reasons", "TF-IDF + K-Means grouped them into six causes, k chosen by silhouette on held-out text"],
-        ["Cancelled orders and missing opening stock", "6,045 cancelled orders and their stock movements excluded; stock rebuilt from zero and reconciled per branch"],
-        ["Outliers in quantity, price and margin", "Flagged with the 1.5 × IQR rule and kept, because bulk orders and price changes are real"],
-        ["No supplier lead times", "Lead time assumed 14 days, 95% service level; both can be changed on the Inventory tab"],
-    ], columns=["Finding or risk", "How it was handled"]), hide_index=True, width="stretch")
-
-    st.subheader("4. Recommendations")
-    st.dataframe(pd.DataFrame([
-        ["High", "QA / CAPA", "CAPA on assay, dissolution and weight-variation failures, starting with Oral Solids", "70% of failures; Oral Solids = 74%", "Failure rate below 3%"],
-        ["High", "Engineering", "Service equipment before it becomes Critical; use the maintenance-state model as an early flag", "6.9% vs 3.1% failure rate; model finds 69% of Critical", "No batch run on Critical equipment"],
-        ["High", "Procurement", "Buy to the reorder-point policy; stop receipts for overstocked items, especially Equipment", "1,033 items overstocked; KES 64 bn beyond 180 days", "Days of cover under 180"],
-        ["Medium", "Branch stores", "Weekly reorder list and stock-out watch-list from the Gradient Boosting model", "Catches 80% of stock-outs two weeks ahead", "Fewer stock-out weeks"],
-        ["Medium", "Planning", "Plan weekly volumes with Croston-SBA; track monthly quality with the trend model", "20% better than last year's pattern; trend WAPE 7%", "Forecast error reported monthly"],
-        ["Medium", "Finance", "Review credit-account terms and collections", f"KES {sales['balance_due_kes'].sum() / 1e6:,.0f} m unpaid, all on credit accounts", "Unpaid share falling"],
-        ["Low", "QA", "Use the failure ranking and abnormal-condition list only for extra checks", "Both signals are weak (lift 1.4–1.5)", "Failures found per check"],
-    ], columns=["Priority", "Owner", "Action", "Evidence", "Measure of success"]), hide_index=True, width="stretch")
-    st.caption("Limitations: no opening stock, expiry dates or supplier lead times; batches cannot be linked to sales; "
-               "model scores are from single test sets; no savings are claimed until stock values are confirmed with stores.")
+    c = st.columns(2)
+    c[0].subheader("How we handled it")
+    c[0].dataframe(pd.DataFrame([
+        ["3.1% failure rate", "PR-AUC, recall, macro F1 · baselines"], ["Weak failure model", "Ranking only, never release"],
+        ["Biased forecasts", "Bias ≤ ±10% rule"], ["Future leakage", "Time-ordered test sets"],
+        ["Rare stock-outs (0.14%)", "Threshold for recall ≥ 0.80"], ["Free-text reasons", "TF-IDF + K-Means"],
+        ["Cancelled orders", "6,045 removed · stock rebuilt"], ["Outliers", "Flagged, kept"], ["No lead times", "14 days assumed"],
+    ], columns=["Issue", "Handling"]), hide_index=True, width="stretch")
+    c[1].subheader("Recommendations")
+    c[1].dataframe(pd.DataFrame([
+        ["High", "QA", "CAPA on top 3 causes, Oral Solids first", "Failure rate < 3%"],
+        ["High", "Engineering", "Service before Critical", "0 Critical runs"],
+        ["High", "Procurement", "Buy to reorder point", "Cover < 180 days"],
+        ["Medium", "Stores", "Weekly stock-out list", "Fewer stock-outs"],
+        ["Medium", "Planning", "Croston weekly plan", "Error tracked"],
+        ["Medium", "Finance", "Credit terms and collections", "Unpaid share down"],
+        ["Low", "QA", "Risk ranking for extra checks", "Failures per check"],
+    ], columns=["Priority", "Owner", "Action", "Target"]), hide_index=True, width="stretch")
+    st.caption("Limits: no opening stock, expiry or lead-time data · batches not linked to sales · single test sets · no savings claimed.")
