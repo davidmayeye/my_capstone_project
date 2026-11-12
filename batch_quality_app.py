@@ -40,6 +40,7 @@ st.markdown("""
 .kpi .value {font-size: clamp(1.2rem, 1.9vw, 1.85rem); font-weight: 800; line-height: 1.15; margin-top: 6px;}
 .kpi .sub {font-size: .78rem; opacity: .92; margin-top: 2px;}
 .kpi .bar {height: 6px; background: rgba(255,255,255,.25); border-radius: 4px; margin-top: 9px; overflow: hidden;}
+.finding {border-left: 5px solid #6366F1; background: rgba(99,102,241,.08); padding: 10px 14px; border-radius: 8px; margin: 2px 0 14px 0; font-size: .95rem;}
 .kpi .bar > div {height: 100%; background: #fff; border-radius: 4px;}
 </style>""", unsafe_allow_html=True)
 
@@ -49,6 +50,10 @@ def kpi(col, label, value, sub="", tone="indigo", bar=None):                # on
     meter = f'<div class="bar"><div style="width:{min(max(bar, 0), 100):.0f}%"></div></div>' if bar is not None else ""
     col.markdown(f'<div class="kpi" style="background: linear-gradient(135deg, {a}, {z});"><div class="label">{label}</div>'
                  f'<div class="value">{value}</div><div class="sub">{sub}</div>{meter}</div>', unsafe_allow_html=True)
+
+
+def finding(text):                                                          # short key-finding callout
+    st.markdown(f'<div class="finding"><b>Finding</b> · {text}</div>', unsafe_allow_html=True)
 
 
 def mask(v):                                                                # last four characters only
@@ -155,6 +160,7 @@ with T["Overview"]:
     kpi(k[2], "Sales lines", f"{len(s):,}", f"{s.cancelled.sum():,} cancelled", "teal")
     kpi(k[3], "Inventory movements", f"{len(inv):,}", f"{(inv.Movement_Type == 'Goods_Received').sum():,} receipts", "violet")
     kpi(k[4], "Net sales", f"KES {live.Net_Amount_Excl_VAT_KES.sum() / 1e9:.1f} bn", "2014–2025", "amber")
+    finding(f"{b.batch_failed.mean():.2%} of {len(b):,} batches failed QC. The data is clean enough to model: 20 of 25 checks pass, none fail.")
     c = st.columns(2)
     miss = (b.drop(columns=["age_band", "operator_band"]).isna().mean().sort_values(ascending=False).head(12) * 100).reset_index()
     miss.columns = ["field", "pct"]
@@ -198,6 +204,7 @@ with T["Batch failure"]:
     kpi(k[1], f"Highest dosage form: {do.loc[do.rate.idxmax(), 'dosage_form']}", f"{do.rate.max():.1f}%", f"lowest {do.rate.min():.1f}%", "rose")
     kpi(k[2], "Strongest factor (chi-square)", tests.factor.iloc[0].replace("_", " "), f"p = {tests.p_value.iloc[0]:.1e}", "violet")
     kpi(k[3], "Overall failure rate", f"{b.batch_failed.mean():.2%}", "dashed line on charts", "amber")
+    finding(f"Failures are not random. Operator experience ({op.rate.min():.1f}–{op.rate.max():.1f}%) and dosage form (Bolus {do.rate.max():.1f}%) matter most.")
     c = st.columns(2)
     c[0].altair_chart(rate_chart("dosage_form", "[Univariate] By dosage form (95% Wilson interval)"), width="stretch")
     c[1].altair_chart(rate_chart("manufacturing_section", "[Univariate] By manufacturing section"), width="stretch")
@@ -270,6 +277,7 @@ with T["Maintenance"]:
     kpi(k[1], "Within same machine", f"{critfe.odds_ratio:.2f}", "equipment fixed effects", "violet")
     kpi(k[2], "Machines on Watch", f"{(eq.priority == 'Watch').sum()} of {len(eq)}", "above expected, CI includes 1", "amber")
     kpi(k[3], "MTBF proxy range", f"{eq.mtbf_hours.min():,.0f}–{eq.mtbf_hours.max():,.0f} h", "production hours per failure", "indigo")
+    finding(f"Critical maintenance raises the odds of failure {crit.odds_ratio:.2f}× (same machine: {critfe.odds_ratio:.2f}×). Service before day 121.")
     c = st.columns(2)
     fp = alt.Chart(orr).encode(y=alt.Y("term:N", sort=None, title=None))
     c[0].altair_chart((fp.mark_rule(color=SLA).encode(x=alt.X("low:Q", scale=alt.Scale(type="log"), title="Odds ratio (log)"), x2="high:Q")
@@ -311,6 +319,7 @@ with T["Classifier"]:
     kpi(k[1], "Test precision", f"{tp / (tp + fp_):.3f}", "target 0.19", "rose")
     kpi(k[2], "Test ROC-AUC", f"{auc(fpr, tpr):.3f}", "target 0.80", "indigo")
     kpi(k[3], "Batches flagged", f"{flag.mean():.1%}", "at the adopted threshold", "amber", bar=flag.mean() * 100)
+    finding(f"Catches {tp / (tp + fn):.0%} of failures but flags {flag.mean():.0%} of batches; ROC-AUC {auc(fpr, tpr):.2f}. Use it to prioritise checks, not to release batches.")
     c = st.columns(3)
     roc = pd.DataFrame({"fpr": fpr, "tpr": tpr}).iloc[:: max(1, len(fpr) // 400)]
     c[0].altair_chart((alt.Chart(roc).mark_line(color=IND).encode(x=alt.X("fpr:Q", title="False positive rate"), y=alt.Y("tpr:Q", title="True positive rate"))
@@ -403,6 +412,7 @@ with T["Process control"]:
     kpi(k[0], "Within limits", f"{wl.share_within.min():.1%} – {wl.share_within.max():.1%}", "across variables", "teal", bar=wl.share_within.min() * 100)
     kpi(k[1], "Cpk range", f"{cap.cpk.min():.2f} – {cap.cpk.max():.2f}", "target 1.33", "rose")
     kpi(k[2], "Sections capable", f"{int((cap.cpk >= 1.33).sum())} of {len(cap)}", "Cpk ≥ 1.33", "amber")
+    finding(f"No section reaches Cpk 1.33 (best {cap.cpk.max():.2f}). Assay variation is the main quality gap.")
     c = st.columns(2)
     c[0].altair_chart((alt.Chart(wl.assign(pct=wl.share_within * 100)).mark_bar(color=IND, clip=True).encode(
         x=alt.X("variable:N", title=None), y=alt.Y("pct:Q", title="Within limits (%)", scale=alt.Scale(domain=[96, 100])), tooltip=["variable", alt.Tooltip("pct:Q", format=".2f")])
@@ -441,6 +451,7 @@ with T["Receivables"]:
     kpi(k[0], "Open credit", f"KES {ag.balance.sum() / 1e6:,.0f} m", f"{len(opn):,} invoices", "amber")
     kpi(k[1], "Older than a year", f"{over:.1%}", "of the open balance", "rose", bar=over * 100)
     kpi(k[2], "Open share, latest year", f"{share.open_share.iloc[-1]:.0%}", "flat across years", "violet", bar=share.open_share.iloc[-1] * 100)
+    finding(f"{over:.0%} of KES {ag.balance.sum() / 1e6:,.0f} m open credit is over a year old. The balance field is likely not updated: fix it before chasing debts.")
     c = st.columns(3)
     c[0].altair_chart(alt.Chart(ag.assign(m=ag.balance / 1e6)).mark_bar(color=AMB).encode(x=alt.X("bucket:N", sort=None, title=None), y=alt.Y("m:Q", title="KES million"),
                       tooltip=["bucket", alt.Tooltip("m:Q", format=",.1f")]).properties(height=260, title="[Univariate] Open balance by age"), width="stretch")
@@ -491,6 +502,7 @@ with T["Margin"]:
     kpi(k[1], "Units per discount point", f"+{oot['pct']:.2f}%", f"2014–2023 · full period +{full['pct']:.2f}%", "sky")
     kpi(k[2], "5% cap, no volume loss", f"KES {sc.profit_change.iloc[0] / 1e6:+,.1f} m", "profit change 2024–25", "teal")
     kpi(k[3], "5% cap, all response lost", f"KES {sc.profit_change.iloc[2] / 1e6:+,.1f} m", "profit change 2024–25", "amber")
+    finding(f"Margin falls from {mg.margin.iloc[0]:.0f}% to {mg.margin.iloc[-1]:.0f}% with deep discounts. A 5% cap adds KES {sc.profit_change.iloc[0] / 1e6:,.1f} m if volume holds: trial it.")
     c = st.columns(2)
     base = alt.Chart(mg).encode(x=alt.X("Discount_Pct:O", title="Discount (%)"))
     c[0].altair_chart(alt.layer(base.mark_bar(color=SKY, opacity=0.5).encode(y=alt.Y("orders:Q", title="Orders")),
@@ -548,6 +560,7 @@ with T["Inventory & forecast"]:
     kpi(k[1], "Seasonal naive", f"{fh.wape.iloc[1]:.1f}%", f"gain {(1 - fh.wape.iloc[0] / fh.wape.iloc[1]) * 100:.1f}%", "amber")
     kpi(k[2], "Cancelled stock value", f"KES {par.sum() / 1e6:,.1f} m", f"{len(cso):,} movements", "rose")
     kpi(k[3], "Top 5 products", f"{par.head(5).sum() / par.sum():.0%}", "of cancelled value", "violet", bar=par.head(5).sum() / par.sum() * 100)
+    finding(f"A simple 12-month average beats last-year repeats by {(1 - fh.wape.iloc[0] / fh.wape.iloc[1]) * 100:.0f}%. KES {par.sum() / 1e6:,.0f} m of stock sits on cancelled orders.")
     c = st.columns([1, 2])
     c[0].altair_chart(alt.Chart(fh).mark_bar(color=IND).encode(y=alt.Y("method:N", sort="x", title=None), x=alt.X("wape:Q", title="WAPE (%)"), tooltip=["method", alt.Tooltip("wape:Q", format=".1f")])
                       .properties(height=260, title="[Univariate] Forecast error, 2025 holdout"), width="stretch")
@@ -589,6 +602,7 @@ with T["Cost & suppliers"]:
     kpi(k[0], "Median unit cost of receipts", f"KES {uc.Unit_Cost_KES.iloc[0]:,.0f} → {uc.Unit_Cost_KES.iloc[-1]:,.0f}", f"{int(uc.year.iloc[0])} → {int(uc.year.iloc[-1])}", "amber")
     kpi(k[1], "Supplier concentration (HHI)", f"{hhi.hhi.iloc[-1]:,.0f}", "below 1,500" if hhi.hhi.iloc[-1] < 1500 else "above 1,500", "teal")
     kpi(k[2], "Supplier premium", "0 of 30", "suppliers above reference price (notebook)", "indigo")
+    finding(f"Unit cost nearly doubled (KES {uc.Unit_Cost_KES.iloc[0]:,.0f} → {uc.Unit_Cost_KES.iloc[-1]:,.0f}), but supply is spread out (HHI {hhi.hhi.iloc[-1]:,.0f}): the rise is not a supplier problem.")
     c = st.columns(3)
     c[0].altair_chart(alt.Chart(uc).mark_line(point=True, color=IND).encode(x=alt.X("year:O", title=None), y=alt.Y("Unit_Cost_KES:Q", title="Median unit cost (KES)"))
                       .properties(height=260, title="[Bivariate] Unit cost of receipts by year"), width="stretch")
@@ -638,6 +652,7 @@ with T["Risk score"]:
     kpi(k[0], "Classifier alert", f"{rules.caught.iloc[0]:.0%} caught", f"from {rules.flagged.iloc[0]:.0%} of batches", "indigo")
     kpi(k[1], "High risk tier", f"{rules.caught.iloc[1]:.0%} caught", f"from 10% of batches · lift {ws.lift.iloc[0]:.2f}", "teal")
     kpi(k[2], "Critical only", f"{rules.caught.iloc[2]:.0%} caught", f"from {rules.flagged.iloc[2]:.1%} of batches", "rose")
+    finding(f"The top-10% risk tier catches {rules.caught.iloc[1]:.0%} of failures ({ws.lift.iloc[0]:.1f}× the base rate). Weights are assumptions and need sign-off.")
     c = st.columns(2)
     rr = rules.assign(fx=rules.flagged * 100, cy=rules.caught * 100)
     c[0].altair_chart((alt.Chart(rr).mark_circle(size=200, color=IND).encode(x=alt.X("fx:Q", title="Batches flagged (%)"), y=alt.Y("cy:Q", title="Failures caught (%)"), tooltip=["rule", alt.Tooltip("fx:Q", format=".1f"), alt.Tooltip("cy:Q", format=".1f")])
@@ -723,6 +738,7 @@ def finance_page(sales, moves, pal, tn):                                    # th
     kpi(k[2], "Stock at cost", f"KES {stock_value / 1e9:.1f} bn", f"{stock_value / (cogs12 / 12):,.0f} months of cost of sales", tn[3])
     kpi(k[3], "Average order", f"KES {rev / len(d):,.0f}", "net, excluding VAT", tn[5])
 
+    finding(f"Gross margin is {gp / rev:.1%} on KES {rev / 1e9:.1f} bn. Discounts cost KES {disc / 1e6:,.0f} m and KES {due / 1e6:,.0f} m is still unpaid.")
     st.subheader("Revenue, gross profit and margin by year")
     yr = d.groupby(d["sale_date"].dt.year.rename("year")).agg(revenue=("net_amount_excl_vat_kes", "sum"),
                                                               gross_profit=("gross_profit_kes", "sum")).reset_index()
@@ -893,6 +909,7 @@ def stock_items(_live, _inv, cancelled_ids):                                # de
 
 
 def whatif_page():
+    finding("Maintenance status is the biggest single lever: moving a typical batch to Critical raises its failure chance by about half.")
     part = st.radio("Predict", ["Batch failure", "Maintenance status", "Discount decision", "Stock and reorder"], horizontal=True, key="bq_wi")
     if part == "Batch failure":
         base_avg = prob[TR].mean()                                          # average past chance
