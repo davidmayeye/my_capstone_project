@@ -142,8 +142,8 @@ model, cal, cols, raw, prob, thr, TR, VA, TE = classifier(b)
 st.markdown('<div class="banner"><h1>Batch Quality, Equipment Reliability and Commercial Results</h1>'
             '<p>Companion to Batch_Quality_Final_Notebook · LAL data 2007–2026 · seed 42 · train 2007–21, validate 2022–23, test 2024–26</p></div>',
             unsafe_allow_html=True)
-NAMES = ["Overview", "1 Batch failure", "2 Maintenance", "3 Classifier", "4 Process control", "5 Receivables",
-         "6 Margin", "7 Inventory & forecast", "8 Cost & suppliers", "9 Risk score", "Executive summary"]
+NAMES = ["Overview", "Batch failure", "Maintenance", "Classifier", "Process control", "Receivables",
+         "Margin", "Inventory & forecast", "Cost & suppliers", "Risk score", "Executive summary"]
 T = dict(zip(NAMES, st.tabs(NAMES)))
 
 # ------------------------------------------------------------------ overview (section 0)
@@ -185,7 +185,7 @@ def rate_chart(col, title, order=None):
                      base.mark_rule(color="#334155").encode(y="low:Q", y2="high:Q"), avg).properties(height=260, title=title)
 
 
-with T["1 Batch failure"]:
+with T["Batch failure"]:
     tests = []
     for col in ["operator_band", "dosage_form", "age_band", "maintenance_status", "manufacturing_section"]:
         tab = pd.crosstab(b[col], b.batch_failed)
@@ -259,7 +259,7 @@ def equipment_table(b):
     return e
 
 
-with T["2 Maintenance"]:
+with T["Maintenance"]:
     orr, orfe = odds_ratios(b), odds_ratios(b, fe=True)
     eq = equipment_table(b)
     crit = orr.set_index("term").loc["Maintenance: Critical"]
@@ -299,7 +299,7 @@ with T["2 Maintenance"]:
     st.dataframe(eq[["name", "batches", "failures", "expected", "ratio", "low", "high", "priority", "mtbf_hours"]].round(2), hide_index=True, width="stretch")
 
 # ------------------------------------------------------------------ 3 classifier and predictor
-with T["3 Classifier"]:
+with T["Classifier"]:
     yte, rte, pte = b.batch_failed.to_numpy()[TE], 1 / (1 + np.exp(-raw[TE])), prob[TE]
     flag = rte >= thr
     tp, fp_, fn, tn = int((flag & (yte == 1)).sum()), int((flag & (yte == 0)).sum()), int((~flag & (yte == 1)).sum()), int((~flag & (yte == 0)).sum())
@@ -396,7 +396,7 @@ def process_tables(_b):
     return cl, wl, pd.DataFrame(cap, columns=["section", "n", "cp", "cpk", "out_of_spec"])
 
 
-with T["4 Process control"]:
+with T["Process control"]:
     cl, wl, cap = process_tables(b)
     k = st.columns(3)
     kpi(k[0], "Within limits", f"{wl.share_within.min():.1%} – {wl.share_within.max():.1%}", "across variables", "teal", bar=wl.share_within.min() * 100)
@@ -426,7 +426,7 @@ with T["4 Process control"]:
                       .properties(height=260, title="[Bivariate] Out-of-spec share vs Cpk"), width="stretch")
 
 # ------------------------------------------------------------------ 5 receivables
-with T["5 Receivables"]:
+with T["Receivables"]:
     cr = live[live.Payment_Method == "Credit Account"].copy()
     end = s.Sale_Date.max()
     cr["age"] = (end - cr.Sale_Date).dt.days
@@ -480,7 +480,7 @@ def cap_scenarios(_live, coef, years=(2024, 2025), cap=5.0):
     return pd.DataFrame(out, columns=["volume case", "profit_change", "volume_retained_pct"])
 
 
-with T["6 Margin"]:
+with T["Margin"]:
     mg = live.groupby("Discount_Pct").agg(orders=("Sale_ID", "size"), gp=("gp", "sum"), rev=("Net_Amount_Excl_VAT_KES", "sum")).reset_index()
     mg["margin"] = mg.gp / mg.rev * 100
     full, oot = discount_model(live), discount_model(live, 2023)
@@ -535,7 +535,7 @@ def forecast_holdout(_live):
     return pd.DataFrame(rows, columns=["branch", "product", "month", "actual", "mean_12m", "seasonal_naive", "holt_winters"])
 
 
-with T["7 Inventory & forecast"]:
+with T["Inventory & forecast"]:
     fp = forecast_holdout(live)
     w = lambda c_: (fp.actual - fp[c_]).abs().sum() / fp.actual.sum() * 100
     fh = pd.DataFrame({"method": ["Mean of last 12 months", "Seasonal naive", "Holt-Winters"], "wape": [w("mean_12m"), w("seasonal_naive"), w("holt_winters")]})
@@ -569,7 +569,7 @@ with T["7 Inventory & forecast"]:
                       .properties(height=280, title="[Bivariate] Monthly demand vs reorder point (60 days)"), width="stretch")
 
 # ------------------------------------------------------------------ 8 cost and suppliers
-with T["8 Cost & suppliers"]:
+with T["Cost & suppliers"]:
     gr = inv[inv.Movement_Type == "Goods_Received"].assign(value=lambda d: d.Quantity_Change * d.Unit_Cost_KES)
     uc = gr.groupby("year").Unit_Cost_KES.median().reset_index()
     sh = gr.groupby(["year", "Supplier_ID"]).Quantity_Change.sum() / gr.groupby("year").Quantity_Change.sum()  # share of units received
@@ -624,7 +624,7 @@ def risk_backtest(_b, prob_te):
     return pd.DataFrame(rows, columns=["scenario", "w_quality", "w_equipment", "w_process", "flagged", "caught", "lift"])
 
 
-with T["9 Risk score"]:
+with T["Risk score"]:
     rte = 1 / (1 + np.exp(-raw[TE]))
     yte = b.batch_failed.to_numpy()[TE]
     ws = risk_backtest(b, prob[TE])
